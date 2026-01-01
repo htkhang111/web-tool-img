@@ -22,8 +22,7 @@ export const Loader = {
 
     setupPasteEvent() {
         document.addEventListener('paste', (e) => {
-            // --- ĐOẠN MỚI THÊM VÀO: KIỂM TRA TAB ---
-            // Nếu đang ở Tab GIF (id="gif-tab") thì Loader (Ảnh tĩnh) không được can thiệp
+            // FIX: Nếu đang ở Tab GIF (id="gif-tab") thì Loader (Ảnh tĩnh) ko được chạy
             const activeTab = document.querySelector('.nav-link.active');
             if (activeTab && activeTab.id !== 'photo-tab') return; 
             // ---------------------------------------

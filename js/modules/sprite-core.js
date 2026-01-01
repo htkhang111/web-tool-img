@@ -1,5 +1,5 @@
 // js/modules/sprite-core.js
-// Logic: Studio Workflow (Lock Config -> Export Options -> Render)
+// Logic: Studio Workflow + Offset Adjustment
 
 let currentSprite = null;
 let previewInterval = null;
@@ -16,7 +16,8 @@ export const SpriteCore = {
         const btnLock = document.getElementById('btnLockSprite');
         const dropZone = document.getElementById('spriteDropZone');
         
-        const inputsToWatch = ['spriteCols', 'spriteRows', 'spriteFPS'];
+        // Theo dõi thêm Offset X, Y
+        const inputsToWatch = ['spriteCols', 'spriteRows', 'spriteFPS', 'spriteOffsetX', 'spriteOffsetY'];
 
         if (input) {
             input.addEventListener('change', (e) => {
@@ -24,12 +25,10 @@ export const SpriteCore = {
             });
         }
 
-        // Lock Button Event
         if (btnLock) {
             btnLock.addEventListener('click', () => this.toggleLock());
         }
 
-        // Drag & Drop
         if (dropZone) {
             ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
                 dropZone.addEventListener(eventName, (e) => {
@@ -55,7 +54,6 @@ export const SpriteCore = {
             if(el) el.addEventListener('input', () => this.startPreviewAnimation());
         });
 
-        // Paste Support
         document.addEventListener('paste', (e) => {
             const activeTab = document.querySelector('.nav-link.active');
             if (activeTab && activeTab.id === 'sprite-tab') {
@@ -71,7 +69,6 @@ export const SpriteCore = {
     },
 
     loadSprite(file) {
-        // Reset state
         this.unlockUI(); 
         
         document.getElementById('spriteDropZone').style.display = 'none';
@@ -84,17 +81,17 @@ export const SpriteCore = {
             currentSprite = img;
             document.getElementById('spriteOriginalSize').innerText = `${img.width} x ${img.height} px`;
             
-            // Default config
             document.getElementById('spriteCols').value = 4; 
             document.getElementById('spriteRows').value = 1;
             document.getElementById('spriteFPS').value = 12;
+            document.getElementById('spriteOffsetX').value = 0;
+            document.getElementById('spriteOffsetY').value = 0;
             
             this.startPreviewAnimation();
         };
         img.src = URL.createObjectURL(file);
     },
 
-    // --- LOGIC KHÓA / MỞ KHÓA (Studio Flow) ---
     toggleLock() {
         if (!currentSprite) return;
         isLocked = !isLocked;
@@ -104,7 +101,6 @@ export const SpriteCore = {
         const btnLock = document.getElementById('btnLockSprite');
 
         if (isLocked) {
-            // Trạng thái KHÓA: Disable cấu hình, Enable xuất file
             configSet.disabled = true;
             exportPanel.style.opacity = '1';
             exportPanel.style.pointerEvents = 'auto';
@@ -139,6 +135,11 @@ export const SpriteCore = {
         const cols = parseInt(document.getElementById('spriteCols').value) || 1;
         const rows = parseInt(document.getElementById('spriteRows').value) || 1;
         const fps = parseInt(document.getElementById('spriteFPS').value) || 12;
+        
+        // Lấy giá trị Offset
+        const offX = parseInt(document.getElementById('spriteOffsetX').value) || 0;
+        const offY = parseInt(document.getElementById('spriteOffsetY').value) || 0;
+
         const delay = 1000 / fps;
 
         const frameW = Math.floor(currentSprite.width / cols);
@@ -159,11 +160,14 @@ export const SpriteCore = {
             const r = Math.floor(currentFrameIndex / cols);
 
             ctx.clearRect(0, 0, frameW, frameH);
+            
+            // Vẽ có áp dụng Offset X, Y
             ctx.drawImage(
                 currentSprite, 
                 c * frameW, r * frameH, 
                 frameW, frameH, 
-                0, 0, frameW, frameH
+                offX, offY, // Dịch chuyển vị trí vẽ trên canvas
+                frameW, frameH
             );
 
             currentFrameIndex = (currentFrameIndex + 1) % totalFrames;
@@ -176,12 +180,14 @@ export const SpriteCore = {
     processSprite() {
         if (!currentSprite) return;
 
-        const format = document.getElementById('spriteFormat').value; // 'gif' or 'png'
+        const format = document.getElementById('spriteFormat').value; 
         const targetWidthInput = document.getElementById('spriteTargetWidth').value;
         const name = document.getElementById('spriteOutName').value || 'result';
 
         const cols = parseInt(document.getElementById('spriteCols').value);
         const rows = parseInt(document.getElementById('spriteRows').value);
+        const offX = parseInt(document.getElementById('spriteOffsetX').value) || 0;
+        const offY = parseInt(document.getElementById('spriteOffsetY').value) || 0;
         
         const frameW = Math.floor(currentSprite.width / cols);
         const frameH = Math.floor(currentSprite.height / rows);
@@ -197,15 +203,18 @@ export const SpriteCore = {
             finalH = Math.floor(frameH * scale);
         }
 
-        // --- XỬ LÝ PNG (Xuất Frame Tĩnh) ---
+        // Tính Offset sau khi resize
+        const scaledOffX = Math.floor(offX * scale);
+        const scaledOffY = Math.floor(offY * scale);
+
+        // --- XỬ LÝ PNG (Frame 0) ---
         if (format === 'png') {
             const canvas = document.createElement('canvas');
             canvas.width = finalW;
             canvas.height = finalH;
             const ctx = canvas.getContext('2d');
             
-            // Lấy frame 0 cho chuẩn
-            ctx.drawImage(currentSprite, 0, 0, frameW, frameH, 0, 0, finalW, finalH);
+            ctx.drawImage(currentSprite, 0, 0, frameW, frameH, scaledOffX, scaledOffY, finalW, finalH);
             
             canvas.toBlob((blob) => {
                 this.forceDownload(blob, `${name}.png`);
@@ -213,7 +222,7 @@ export const SpriteCore = {
             return;
         }
 
-        // --- XỬ LÝ GIF (Animation) ---
+        // --- XỬ LÝ GIF ---
         const fps = parseInt(document.getElementById('spriteFPS').value);
         const loop = document.getElementById('spriteLoop').checked;
         const delay = 1000 / fps;
@@ -240,11 +249,11 @@ export const SpriteCore = {
                 canvas.height = finalH;
                 const ctx = canvas.getContext('2d');
                 
-                // Vẽ Resize
+                // Vẽ Resize + Offset
                 ctx.drawImage(
                     currentSprite, 
-                    c * frameW, r * frameH, frameW, frameH, // Source
-                    0, 0, finalW, finalH                    // Dest (Resized)
+                    c * frameW, r * frameH, frameW, frameH, 
+                    scaledOffX, scaledOffY, finalW, finalH
                 );
                 
                 gif.addFrame(canvas, { delay: delay, copy: true });

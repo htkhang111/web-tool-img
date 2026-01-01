@@ -1,8 +1,9 @@
 // js/modules/sprite-core.js
-// Logic: Drag & Drop, Animation Preview, Silent Export
+// Logic: Studio Workflow (Lock Config -> Export Options -> Render)
 
 let currentSprite = null;
 let previewInterval = null;
+let isLocked = false;
 
 export const SpriteCore = {
     init() {
@@ -12,6 +13,7 @@ export const SpriteCore = {
     setupEvents() {
         const input = document.getElementById('spriteInput');
         const btnConvert = document.getElementById('btnSpriteConvert');
+        const btnLock = document.getElementById('btnLockSprite');
         const dropZone = document.getElementById('spriteDropZone');
         
         const inputsToWatch = ['spriteCols', 'spriteRows', 'spriteFPS'];
@@ -20,6 +22,11 @@ export const SpriteCore = {
             input.addEventListener('change', (e) => {
                 if (e.target.files && e.target.files[0]) this.loadSprite(e.target.files[0]);
             });
+        }
+
+        // Lock Button Event
+        if (btnLock) {
+            btnLock.addEventListener('click', () => this.toggleLock());
         }
 
         // Drag & Drop
@@ -64,20 +71,20 @@ export const SpriteCore = {
     },
 
     loadSprite(file) {
+        // Reset state
+        this.unlockUI(); 
+        
         document.getElementById('spriteDropZone').style.display = 'none';
         document.getElementById('spriteEditorArea').style.display = 'flex';
         document.getElementById('spriteNameDisplay').innerText = file.name;
         document.getElementById('spriteOutName').value = file.name.split('.')[0] + '_anim';
-        
-        // Ẩn vùng kết quả nếu đang hiện
-        const resArea = document.getElementById('spriteResultArea');
-        if(resArea) resArea.classList.add('d-none');
 
         const img = new Image();
         img.onload = () => {
             currentSprite = img;
             document.getElementById('spriteOriginalSize').innerText = `${img.width} x ${img.height} px`;
             
+            // Default config
             document.getElementById('spriteCols').value = 4; 
             document.getElementById('spriteRows').value = 1;
             document.getElementById('spriteFPS').value = 12;
@@ -87,15 +94,51 @@ export const SpriteCore = {
         img.src = URL.createObjectURL(file);
     },
 
+    // --- LOGIC KHÓA / MỞ KHÓA (Studio Flow) ---
+    toggleLock() {
+        if (!currentSprite) return;
+        isLocked = !isLocked;
+        
+        const configSet = document.getElementById('spriteConfigSet');
+        const exportPanel = document.getElementById('spriteExportPanel');
+        const btnLock = document.getElementById('btnLockSprite');
+
+        if (isLocked) {
+            // Trạng thái KHÓA: Disable cấu hình, Enable xuất file
+            configSet.disabled = true;
+            exportPanel.style.opacity = '1';
+            exportPanel.style.pointerEvents = 'auto';
+            btnLock.innerHTML = '<i class="fas fa-unlock"></i> Mở Khóa Cấu Hình';
+            btnLock.className = 'btn btn-outline-secondary w-100 fw-bold mt-auto';
+        } else {
+            this.unlockUI();
+        }
+    },
+
+    unlockUI() {
+        isLocked = false;
+        const configSet = document.getElementById('spriteConfigSet');
+        const exportPanel = document.getElementById('spriteExportPanel');
+        const btnLock = document.getElementById('btnLockSprite');
+
+        if(configSet) configSet.disabled = false;
+        if(exportPanel) {
+            exportPanel.style.opacity = '0.5';
+            exportPanel.style.pointerEvents = 'none';
+        }
+        if(btnLock) {
+            btnLock.innerHTML = '<i class="fas fa-lock"></i> Chốt & Tiếp Tục';
+            btnLock.className = 'btn btn-outline-danger w-100 fw-bold mt-auto';
+        }
+    },
+
     startPreviewAnimation() {
         if (!currentSprite) return;
-        
         if (previewInterval) clearInterval(previewInterval);
 
         const cols = parseInt(document.getElementById('spriteCols').value) || 1;
         const rows = parseInt(document.getElementById('spriteRows').value) || 1;
         const fps = parseInt(document.getElementById('spriteFPS').value) || 12;
-        
         const delay = 1000 / fps;
 
         const frameW = Math.floor(currentSprite.width / cols);
@@ -133,38 +176,77 @@ export const SpriteCore = {
     processSprite() {
         if (!currentSprite) return;
 
-        const cols = parseInt(document.getElementById('spriteCols').value) || 1;
-        const rows = parseInt(document.getElementById('spriteRows').value) || 1;
-        const fps = parseInt(document.getElementById('spriteFPS').value) || 12;
+        const format = document.getElementById('spriteFormat').value; // 'gif' or 'png'
+        const targetWidthInput = document.getElementById('spriteTargetWidth').value;
+        const name = document.getElementById('spriteOutName').value || 'result';
+
+        const cols = parseInt(document.getElementById('spriteCols').value);
+        const rows = parseInt(document.getElementById('spriteRows').value);
+        
+        const frameW = Math.floor(currentSprite.width / cols);
+        const frameH = Math.floor(currentSprite.height / rows);
+
+        // Tính toán Resize
+        let finalW = frameW;
+        let finalH = frameH;
+        let scale = 1;
+
+        if (targetWidthInput && parseInt(targetWidthInput) > 0) {
+            finalW = parseInt(targetWidthInput);
+            scale = finalW / frameW;
+            finalH = Math.floor(frameH * scale);
+        }
+
+        // --- XỬ LÝ PNG (Xuất Frame Tĩnh) ---
+        if (format === 'png') {
+            const canvas = document.createElement('canvas');
+            canvas.width = finalW;
+            canvas.height = finalH;
+            const ctx = canvas.getContext('2d');
+            
+            // Lấy frame 0 cho chuẩn
+            ctx.drawImage(currentSprite, 0, 0, frameW, frameH, 0, 0, finalW, finalH);
+            
+            canvas.toBlob((blob) => {
+                this.forceDownload(blob, `${name}.png`);
+            });
+            return;
+        }
+
+        // --- XỬ LÝ GIF (Animation) ---
+        const fps = parseInt(document.getElementById('spriteFPS').value);
         const loop = document.getElementById('spriteLoop').checked;
-
-        const delay = 1000 / fps; 
-
-        const frameWidth = Math.floor(currentSprite.width / cols);
-        const frameHeight = Math.floor(currentSprite.height / rows);
+        const delay = 1000 / fps;
 
         const gif = new GIF({
             workers: 2,
             quality: 10,
             workerScript: './js/gif.worker.js',
-            width: frameWidth,
-            height: frameHeight,
+            width: finalW,
+            height: finalH,
             repeat: loop ? 0 : -1,
             transparent: 0x000000 
         });
 
         const btn = document.getElementById('btnSpriteConvert');
         const originalText = btn.innerHTML;
-        btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Processing...';
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
         btn.disabled = true;
 
         for (let r = 0; r < rows; r++) {
             for (let c = 0; c < cols; c++) {
                 const canvas = document.createElement('canvas');
-                canvas.width = frameWidth;
-                canvas.height = frameHeight;
+                canvas.width = finalW;
+                canvas.height = finalH;
                 const ctx = canvas.getContext('2d');
-                ctx.drawImage(currentSprite, c * frameWidth, r * frameHeight, frameWidth, frameHeight, 0, 0, frameWidth, frameHeight);
+                
+                // Vẽ Resize
+                ctx.drawImage(
+                    currentSprite, 
+                    c * frameW, r * frameH, frameW, frameH, // Source
+                    0, 0, finalW, finalH                    // Dest (Resized)
+                );
+                
                 gif.addFrame(canvas, { delay: delay, copy: true });
             }
         }
@@ -172,21 +254,20 @@ export const SpriteCore = {
         gif.on('finished', (blob) => {
             btn.innerHTML = originalText;
             btn.disabled = false;
-            
-            // Chỉ tải xuống, không hiện ảnh kết quả nữa
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = (document.getElementById('spriteOutName').value || 'sprite_anim') + '.gif';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            
-            // Xóa vùng kết quả nếu có
-            const resArea = document.getElementById('spriteResultArea');
-            if(resArea) resArea.classList.add('d-none');
+            this.forceDownload(blob, `${name}.gif`);
         });
 
         gif.render();
+    },
+
+    forceDownload(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
     }
 };

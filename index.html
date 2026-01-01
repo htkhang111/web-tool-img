@@ -1,416 +1,273 @@
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tool Đa Năng: Ảnh & GIF - Ghét Hải Sản</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css">
-</head>
-<body class="bg-dark text-light">
+// js/modules/sprite-core.js
+// Logic: Studio Workflow (Lock Config -> Export Options -> Render)
 
-    <div class="container py-4">
-        <div class="d-flex justify-content-between align-items-center mb-4 border-bottom border-secondary pb-3">
-            <h3 class="text-info m-0"><i class="fas fa-layer-group"></i> Editor Pro</h3>
-            <div class="text-muted small">Dev: Trương Khuynh Hàn</div>
-        </div>
+let currentSprite = null;
+let previewInterval = null;
+let isLocked = false;
 
-        <ul class="nav nav-pills mb-4 justify-content-center" id="toolTabs">
-            <li class="nav-item">
-                <button class="nav-link active px-3" id="photo-tab" data-bs-toggle="pill" data-bs-target="#photo-panel">
-                    <i class="fas fa-image me-2"></i>Cắt Ảnh
-                </button>
-            </li>
-            <li class="nav-item">
-                <button class="nav-link px-3" id="gif-tab" data-bs-toggle="pill" data-bs-target="#gif-panel">
-                    <i class="fas fa-film me-2"></i>Edit GIF
-                </button>
-            </li>
-            <li class="nav-item">
-                <button class="nav-link px-3" id="sprite-tab" data-bs-toggle="pill" data-bs-target="#sprite-panel">
-                    <i class="fas fa-ghost me-2"></i>Sprite to GIF
-                </button>
-            </li>
-        </ul>
+export const SpriteCore = {
+    init() {
+        this.setupEvents();
+    },
 
-        <div class="tab-content">
+    setupEvents() {
+        const input = document.getElementById('spriteInput');
+        const btnConvert = document.getElementById('btnSpriteConvert');
+        const btnLock = document.getElementById('btnLockSprite');
+        const dropZone = document.getElementById('spriteDropZone');
+        
+        const inputsToWatch = ['spriteCols', 'spriteRows', 'spriteFPS'];
+
+        if (input) {
+            input.addEventListener('change', (e) => {
+                if (e.target.files && e.target.files[0]) this.loadSprite(e.target.files[0]);
+            });
+        }
+
+        // Lock Button Event
+        if (btnLock) {
+            btnLock.addEventListener('click', () => this.toggleLock());
+        }
+
+        // Drag & Drop
+        if (dropZone) {
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }, false);
+            });
+
+            dropZone.addEventListener('dragover', () => dropZone.classList.add('active'));
+            dropZone.addEventListener('dragleave', () => dropZone.classList.remove('active'));
+
+            dropZone.addEventListener('drop', (e) => {
+                dropZone.classList.remove('active');
+                const dt = e.dataTransfer;
+                if (dt.files && dt.files[0]) this.loadSprite(dt.files[0]);
+            });
+        }
+
+        if (btnConvert) btnConvert.addEventListener('click', () => this.processSprite());
+
+        inputsToWatch.forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.addEventListener('input', () => this.startPreviewAnimation());
+        });
+
+        // Paste Support
+        document.addEventListener('paste', (e) => {
+            const activeTab = document.querySelector('.nav-link.active');
+            if (activeTab && activeTab.id === 'sprite-tab') {
+                const items = e.clipboardData.items;
+                for (let i = 0; i < items.length; i++) {
+                    if (items[i].type.indexOf('image') !== -1) {
+                        this.loadSprite(items[i].getAsFile());
+                        break;
+                    }
+                }
+            }
+        });
+    },
+
+    loadSprite(file) {
+        // Reset state
+        this.unlockUI(); 
+        
+        document.getElementById('spriteDropZone').style.display = 'none';
+        document.getElementById('spriteEditorArea').style.display = 'flex';
+        document.getElementById('spriteNameDisplay').innerText = file.name;
+        document.getElementById('spriteOutName').value = file.name.split('.')[0] + '_anim';
+
+        const img = new Image();
+        img.onload = () => {
+            currentSprite = img;
+            document.getElementById('spriteOriginalSize').innerText = `${img.width} x ${img.height} px`;
             
-            <div class="tab-pane fade show active" id="photo-panel">
-                <div class="card bg-secondary text-white mb-4 shadow-sm dashed-border">
-                    <div class="card-body text-center py-5" id="dropZone">
-                        <i class="fas fa-cloud-upload-alt fa-3x mb-3 text-info"></i>
-                        <h5>Cắt & Nén Ảnh Tĩnh (JPG, PNG)</h5>
-                        <p class="small text-white-50">Hỗ trợ: Paste (Ctrl+V)</p>
-                        <label for="imageInput" class="btn btn-info fw-bold mt-2">📂 Chọn Ảnh</label>
-                        <input type="file" id="imageInput" accept="image/*" hidden>
-                        <div class="mt-3 small text-warning fw-bold" id="fileNameDisplay"></div>
-                    </div>
-                </div>
-                <div class="row" id="editorArea" style="display: none;">
-                    <div class="col-lg-8 mb-3">
-                        <div class="img-container border border-secondary shadow-lg">
-                            <img id="image" src="" alt="Picture">
-                        </div>
-                        <div class="mt-3 d-flex gap-2 justify-content-center">
-                            <button class="btn btn-outline-light btn-sm" id="btnRotateLeft"><i class="fas fa-undo"></i></button>
-                            <button class="btn btn-outline-light btn-sm" id="btnRotateRight"><i class="fas fa-redo"></i></button>
-                            <button class="btn btn-outline-light btn-sm" id="btnFlipH"><i class="fas fa-arrows-alt-h"></i></button>
-                            <button class="btn btn-outline-danger btn-sm ms-3" id="btnReset"><i class="fas fa-sync"></i> Reset</button>
-                        </div>
-                    </div>
-                    <div class="col-lg-4">
-                        <div class="card bg-dark border-secondary p-3 shadow-sm">
-                            <h5 class="text-info mb-3">Xuất File</h5>
-                            <input type="text" id="outName" class="form-control form-control-sm bg-secondary text-white border-0 mb-3" placeholder="Tên file...">
-                            <select id="outFormat" class="form-select form-select-sm bg-secondary text-white border-0 mb-3">
-                                <option value="image/jpeg">JPG</option>
-                                <option value="image/png">PNG</option>
-                                <option value="image/webp">WEBP</option>
-                            </select>
-                            <div class="mb-3">
-                                <label class="small text-muted">Quality: <span id="qualityDisplay">80%</span></label>
-                                <input type="range" class="form-range" id="qualityRange" min="0.1" max="1.0" step="0.1" value="0.8">
-                            </div>
-                            <button id="btnDownload" class="btn btn-success w-100 fw-bold mt-2">Tải Xuống</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="tab-pane fade" id="gif-panel">
-                <div class="card bg-secondary text-white mb-4 shadow-sm dashed-border" id="gifDropZone">
-                    <div class="card-body text-center py-5">
-                        <i class="fas fa-film fa-3x mb-3 text-warning"></i>
-                        <h5>Chỉnh sửa file GIF động</h5>
-                        <label for="gifInput" class="btn btn-warning fw-bold mt-2">📂 Chọn GIF</label>
-                        <input type="file" id="gifInput" accept="image/gif" hidden>
-                        <div class="mt-3 small fw-bold" id="gifNameDisplay"></div>
-                    </div>
-                </div>
-                <div class="row" id="gifEditorArea" style="display: none;">
-                    <div class="col-lg-8 mb-3">
-                        <div class="img-container border border-secondary shadow-lg bg-black position-relative">
-                            <img id="gifImagePlaceholder" src="" style="max-width: 100%; display: block;">
-                            <div id="gifLoading" class="position-absolute top-0 start-0 w-100 h-100 bg-dark bg-opacity-75 d-flex align-items-center justify-content-center flex-column" style="display: none !important; z-index: 10;">
-                                <div class="spinner-border text-warning" role="status"></div>
-                                <div class="mt-2 text-white" id="gifProgressText">Đang xử lý...</div>
-                            </div>
-                        </div>
-                        <div class="mt-3 text-center"><button class="btn btn-outline-warning btn-sm" id="btnGifReset">Reset Khung</button></div>
-                    </div>
-                    <div class="col-lg-4">
-                        <div class="card bg-dark border-secondary p-3 shadow-sm">
-                            <h5 class="text-warning mb-3">Cấu Hình GIF</h5>
-                            <input type="text" id="gifOutName" class="form-control form-control-sm bg-secondary text-white border-0 mb-3" placeholder="Tên file...">
-                            <input type="number" id="gifWidth" placeholder="Resize (px)" class="form-control form-control-sm bg-secondary text-white border-0 mb-3">
-                            <label class="small text-muted">Quality:</label>
-                            <input type="range" class="form-range" id="gifQuality" min="1" max="20" step="1" value="10">
-                            <button id="btnGifDownload" class="btn btn-warning w-100 fw-bold mt-3">Render & Tải</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="tab-pane fade" id="sprite-panel">
-                <div class="card bg-secondary text-white mb-4 shadow-sm dashed-border" id="spriteDropZone">
-                    <div class="card-body text-center py-5">
-                        <i class="fas fa-ghost fa-3x mb-3 text-danger"></i>
-                        <h5>Chuyển Sprite Sheet thành GIF</h5>
-                        <label for="spriteInput" class="btn btn-danger fw-bold mt-2">📂 Chọn Sprite Sheet</label>
-                        <input type="file" id="spriteInput" accept="image/*" hidden>
-                        <div class="mt-3 small fw-bold" id="spriteNameDisplay"></div>
-                    </div>
-                </div>
-
-                <div class="row" id="spriteEditorArea" style="display: none;">
-                    <div class="col-lg-4 mb-3">
-                        <div class="card bg-dark border-secondary p-3 shadow-sm h-100">
-                            <h5 class="text-danger mb-3">Cấu Hình Cắt</h5>
-                            <div class="alert alert-secondary py-2 mb-3 small">
-                                <strong>Gốc:</strong> <span id="spriteOriginalSize" class="text-info">...</span>
-                            </div>
-                            <div class="row g-2 mb-3">
-                                <div class="col-6">
-                                    <label class="small text-muted">Số Cột (Ngang):</label>
-                                    <input type="number" id="spriteCols" class="form-control form-control-sm bg-secondary text-white border-0" value="4" min="1">
-                                </div>
-                                <div class="col-6">
-                                    <label class="small text-muted">Số Hàng (Dọc):</label>
-                                    <input type="number" id="spriteRows" class="form-control form-control-sm bg-secondary text-white border-0" value="1" min="1">
-                                </div>
-                            </div>
-                            <div class="mb-3 p-2 border border-secondary rounded bg-black bg-opacity-25">
-                                <label class="small text-muted d-block">Size 1 Frame:</label>
-                                <strong class="text-warning" id="spriteFrameSize">...</strong>
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label class="small text-muted">Tốc độ (FPS):</label>
-                                <input type="number" id="spriteFPS" class="form-control form-control-sm bg-secondary text-white border-0" value="12" min="1" max="60">
-                                <div class="form-text text-white-50 x-small">Chuẩn game: 12 hoặc 24 FPS</div>
-                            </div>
-
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="spriteLoop" checked>
-                                <label class="form-check-label small" for="spriteLoop">Loop vô tận</label>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="col-lg-4 mb-3">
-                        <div class="card bg-dark border-secondary p-3 shadow-sm h-100">
-                            <h5 class="text-warning mb-3">Preview Animation</h5>
-                            <div class="bg-checkerboard sprite-preview-box mb-3">
-                                <canvas id="framePreviewCanvas"></canvas>
-                            </div>
-                            <div class="text-center small text-white-50"><em>Nếu nhân vật chuyển động mượt là cắt đúng!</em></div>
-                        </div>
-                    </div>
-
-                    <div class="col-lg-4 mb-3">
-                        <div class="card bg-dark border-secondary p-3 shadow-sm h-100">
-                            <h5 class="text-success mb-3">Xuất File</h5>
-                            <input type="text" id="spriteOutName" class="form-control form-control-sm bg-secondary text-white border-0 mb-3" placeholder="Tên file...">
-                            <button id="btnSpriteConvert" class="btn btn-danger w-100 fw-bold py-2 mb-3">🚀 Render GIF</button>
-                            <div id="spriteResultArea" class="d-none text-center mt-3">
-                                <div class="small text-success mb-2">Kết quả:</div>
-                                <div class="bg-checkerboard p-2 rounded border border-secondary d-inline-block">
-                                    <img id="spriteResultImg" style="max-width: 100%; max-height: 150px;">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-        </div>
-    </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/buzzfeed/libgif-js@master/libgif.js"></script>
-    <script src="./js/gif.js"></script>
-    <script type="module" src="./js/main.js"></script>
-</body>
-</html><!DOCTYPE html>
-<html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tool Đa Năng: Ảnh & GIF - Ghét Hải Sản</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css">
-</head>
-<body class="bg-dark text-light">
-
-    <div class="container py-4">
-        <div class="d-flex justify-content-between align-items-center mb-4 border-bottom border-secondary pb-3">
-            <h3 class="text-info m-0"><i class="fas fa-layer-group"></i> Editor Pro</h3>
-            <div class="text-muted small">Dev: Trương Khuynh Hàn</div>
-        </div>
-
-        <ul class="nav nav-pills mb-4 justify-content-center" id="toolTabs">
-            <li class="nav-item">
-                <button class="nav-link active px-3" id="photo-tab" data-bs-toggle="pill" data-bs-target="#photo-panel">
-                    <i class="fas fa-image me-2"></i>Cắt Ảnh
-                </button>
-            </li>
-            <li class="nav-item">
-                <button class="nav-link px-3" id="gif-tab" data-bs-toggle="pill" data-bs-target="#gif-panel">
-                    <i class="fas fa-film me-2"></i>Edit GIF
-                </button>
-            </li>
-            <li class="nav-item">
-                <button class="nav-link px-3" id="sprite-tab" data-bs-toggle="pill" data-bs-target="#sprite-panel">
-                    <i class="fas fa-ghost me-2"></i>Sprite to GIF
-                </button>
-            </li>
-        </ul>
-
-        <div class="tab-content">
+            // Default config
+            document.getElementById('spriteCols').value = 4; 
+            document.getElementById('spriteRows').value = 1;
+            document.getElementById('spriteFPS').value = 12;
             
-            <div class="tab-pane fade show active" id="photo-panel">
-                <div class="card bg-secondary text-white mb-4 shadow-sm dashed-border">
-                    <div class="card-body text-center py-5" id="dropZone">
-                        <i class="fas fa-cloud-upload-alt fa-3x mb-3 text-info"></i>
-                        <h5>Cắt & Nén Ảnh Tĩnh (JPG, PNG)</h5>
-                        <p class="small text-white-50">Hỗ trợ: Paste (Ctrl+V)</p>
-                        <label for="imageInput" class="btn btn-info fw-bold mt-2">📂 Chọn Ảnh</label>
-                        <input type="file" id="imageInput" accept="image/*" hidden>
-                        <div class="mt-3 small text-warning fw-bold" id="fileNameDisplay"></div>
-                    </div>
-                </div>
-                <div class="row" id="editorArea" style="display: none;">
-                    <div class="col-lg-8 mb-3">
-                        <div class="img-container border border-secondary shadow-lg">
-                            <img id="image" src="" alt="Picture">
-                        </div>
-                        <div class="mt-3 d-flex gap-2 justify-content-center">
-                            <button class="btn btn-outline-light btn-sm" id="btnRotateLeft"><i class="fas fa-undo"></i></button>
-                            <button class="btn btn-outline-light btn-sm" id="btnRotateRight"><i class="fas fa-redo"></i></button>
-                            <button class="btn btn-outline-light btn-sm" id="btnFlipH"><i class="fas fa-arrows-alt-h"></i></button>
-                            <button class="btn btn-outline-danger btn-sm ms-3" id="btnReset"><i class="fas fa-sync"></i> Reset</button>
-                        </div>
-                    </div>
-                    <div class="col-lg-4">
-                        <div class="card bg-dark border-secondary p-3 shadow-sm">
-                            <h5 class="text-info mb-3">Xuất File</h5>
-                            <input type="text" id="outName" class="form-control form-control-sm bg-secondary text-white border-0 mb-3" placeholder="Tên file...">
-                            <select id="outFormat" class="form-select form-select-sm bg-secondary text-white border-0 mb-3">
-                                <option value="image/jpeg">JPG</option>
-                                <option value="image/png">PNG</option>
-                                <option value="image/webp">WEBP</option>
-                            </select>
-                            <div class="mb-3">
-                                <label class="small text-muted">Quality: <span id="qualityDisplay">80%</span></label>
-                                <input type="range" class="form-range" id="qualityRange" min="0.1" max="1.0" step="0.1" value="0.8">
-                            </div>
-                            <button id="btnDownload" class="btn btn-success w-100 fw-bold mt-2">Tải Xuống</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            this.startPreviewAnimation();
+        };
+        img.src = URL.createObjectURL(file);
+    },
 
-            <div class="tab-pane fade" id="gif-panel">
-                <div class="card bg-secondary text-white mb-4 shadow-sm dashed-border" id="gifDropZone">
-                    <div class="card-body text-center py-5">
-                        <i class="fas fa-film fa-3x mb-3 text-warning"></i>
-                        <h5>Chỉnh sửa file GIF động</h5>
-                        <label for="gifInput" class="btn btn-warning fw-bold mt-2">📂 Chọn GIF</label>
-                        <input type="file" id="gifInput" accept="image/gif" hidden>
-                        <div class="mt-3 small fw-bold" id="gifNameDisplay"></div>
-                    </div>
-                </div>
-                <div class="row" id="gifEditorArea" style="display: none;">
-                    <div class="col-lg-8 mb-3">
-                        <div class="img-container border border-secondary shadow-lg bg-black position-relative">
-                            <img id="gifImagePlaceholder" src="" style="max-width: 100%; display: block;">
-                            <div id="gifLoading" class="position-absolute top-0 start-0 w-100 h-100 bg-dark bg-opacity-75 d-flex align-items-center justify-content-center flex-column" style="display: none !important; z-index: 10;">
-                                <div class="spinner-border text-warning" role="status"></div>
-                                <div class="mt-2 text-white" id="gifProgressText">Đang xử lý...</div>
-                            </div>
-                        </div>
-                        <div class="mt-3 text-center"><button class="btn btn-outline-warning btn-sm" id="btnGifReset">Reset Khung</button></div>
-                    </div>
-                    <div class="col-lg-4">
-                        <div class="card bg-dark border-secondary p-3 shadow-sm">
-                            <h5 class="text-warning mb-3">Cấu Hình GIF</h5>
-                            <input type="text" id="gifOutName" class="form-control form-control-sm bg-secondary text-white border-0 mb-3" placeholder="Tên file...">
-                            <input type="number" id="gifWidth" placeholder="Resize (px)" class="form-control form-control-sm bg-secondary text-white border-0 mb-3">
-                            <label class="small text-muted">Quality:</label>
-                            <input type="range" class="form-range" id="gifQuality" min="1" max="20" step="1" value="10">
-                            <button id="btnGifDownload" class="btn btn-warning w-100 fw-bold mt-3">Render & Tải</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
+    // --- LOGIC KHÓA / MỞ KHÓA (Studio Flow) ---
+    toggleLock() {
+        if (!currentSprite) return;
+        isLocked = !isLocked;
+        
+        const configSet = document.getElementById('spriteConfigSet');
+        const exportPanel = document.getElementById('spriteExportPanel');
+        const btnLock = document.getElementById('btnLockSprite');
 
-            <div class="tab-pane fade" id="sprite-panel">
-                <div class="card bg-secondary text-white mb-4 shadow-sm dashed-border" id="spriteDropZone">
-                    <div class="card-body text-center py-5">
-                        <i class="fas fa-ghost fa-3x mb-3 text-danger"></i>
-                        <h5>Chuyển Sprite Sheet thành GIF</h5>
-                        <label for="spriteInput" class="btn btn-danger fw-bold mt-2">📂 Chọn Sprite Sheet</label>
-                        <input type="file" id="spriteInput" accept="image/*" hidden>
-                        <div class="mt-3 small fw-bold" id="spriteNameDisplay"></div>
-                    </div>
-                </div>
+        if (isLocked) {
+            // Trạng thái KHÓA: Disable cấu hình, Enable xuất file
+            configSet.disabled = true;
+            exportPanel.style.opacity = '1';
+            exportPanel.style.pointerEvents = 'auto';
+            btnLock.innerHTML = '<i class="fas fa-unlock"></i> Mở Khóa Cấu Hình';
+            btnLock.className = 'btn btn-outline-secondary w-100 fw-bold mt-auto';
+        } else {
+            this.unlockUI();
+        }
+    },
 
-                <div class="row" id="spriteEditorArea" style="display: none;">
-                    
-                    <div class="col-lg-4 mb-3">
-                        <div class="card bg-dark border-secondary p-3 shadow-sm h-100">
-                            <h5 class="text-danger mb-3">1. Cấu Hình Sprite</h5>
-                            
-                            <fieldset id="spriteConfigSet">
-                                <div class="alert alert-secondary py-2 mb-3 small">
-                                    <strong>Gốc:</strong> <span id="spriteOriginalSize" class="text-info">...</span>
-                                </div>
-                                <div class="row g-2 mb-3">
-                                    <div class="col-6">
-                                        <label class="small text-muted">Số Cột:</label>
-                                        <input type="number" id="spriteCols" class="form-control form-control-sm bg-secondary text-white border-0" value="4" min="1">
-                                    </div>
-                                    <div class="col-6">
-                                        <label class="small text-muted">Số Hàng:</label>
-                                        <input type="number" id="spriteRows" class="form-control form-control-sm bg-secondary text-white border-0" value="1" min="1">
-                                    </div>
-                                </div>
-                                <div class="mb-3 p-2 border border-secondary rounded bg-black bg-opacity-25">
-                                    <label class="small text-muted d-block">Size 1 Frame:</label>
-                                    <strong class="text-warning" id="spriteFrameSize">...</strong>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="small text-muted">Tốc độ (FPS):</label>
-                                    <input type="number" id="spriteFPS" class="form-control form-control-sm bg-secondary text-white border-0" value="12" min="1" max="60">
-                                </div>
-                                <div class="form-check mb-3">
-                                    <input class="form-check-input" type="checkbox" id="spriteLoop" checked>
-                                    <label class="form-check-label small" for="spriteLoop">Loop vô tận</label>
-                                </div>
-                            </fieldset>
+    unlockUI() {
+        isLocked = false;
+        const configSet = document.getElementById('spriteConfigSet');
+        const exportPanel = document.getElementById('spriteExportPanel');
+        const btnLock = document.getElementById('btnLockSprite');
 
-                            <button id="btnLockSprite" class="btn btn-outline-danger w-100 fw-bold mt-auto">
-                                <i class="fas fa-lock"></i> Chốt & Tiếp Tục
-                            </button>
-                        </div>
-                    </div>
+        if(configSet) configSet.disabled = false;
+        if(exportPanel) {
+            exportPanel.style.opacity = '0.5';
+            exportPanel.style.pointerEvents = 'none';
+        }
+        if(btnLock) {
+            btnLock.innerHTML = '<i class="fas fa-lock"></i> Chốt & Tiếp Tục';
+            btnLock.className = 'btn btn-outline-danger w-100 fw-bold mt-auto';
+        }
+    },
 
-                    <div class="col-lg-4 mb-3">
-                        <div class="card bg-dark border-secondary p-3 shadow-sm h-100">
-                            <h5 class="text-warning mb-3">2. Xem Trước</h5>
-                            <div class="bg-checkerboard sprite-preview-box mb-3">
-                                <canvas id="framePreviewCanvas"></canvas>
-                            </div>
-                            <div class="text-center small text-white-50">
-                                <em>Chỉnh cột/hàng sao cho hình chuyển động mượt mà.</em>
-                            </div>
-                        </div>
-                    </div>
+    startPreviewAnimation() {
+        if (!currentSprite) return;
+        if (previewInterval) clearInterval(previewInterval);
 
-                    <div class="col-lg-4 mb-3">
-                        <div class="card bg-dark border-secondary p-3 shadow-sm h-100" id="spriteExportPanel" style="opacity: 0.5; pointer-events: none;">
-                            <h5 class="text-success mb-3">3. Xuất File</h5>
-                            
-                            <div class="mb-3">
-                                <label class="small text-muted">Resize (Width px):</label>
-                                <input type="number" id="spriteTargetWidth" class="form-control form-control-sm bg-secondary text-white border-0" placeholder="Để trống nếu giữ nguyên">
-                                <div class="form-text text-white-50 x-small">Tự động tính chiều cao</div>
-                            </div>
+        const cols = parseInt(document.getElementById('spriteCols').value) || 1;
+        const rows = parseInt(document.getElementById('spriteRows').value) || 1;
+        const fps = parseInt(document.getElementById('spriteFPS').value) || 12;
+        const delay = 1000 / fps;
 
-                            <div class="mb-3">
-                                <label class="small text-muted">Định dạng:</label>
-                                <select id="spriteFormat" class="form-select form-select-sm bg-secondary text-white border-0">
-                                    <option value="gif">GIF (Ảnh động)</option>
-                                    <option value="png">PNG (Ảnh tĩnh Frame 1)</option>
-                                </select>
-                            </div>
+        const frameW = Math.floor(currentSprite.width / cols);
+        const frameH = Math.floor(currentSprite.height / rows);
 
-                            <div class="mb-4">
-                                <label class="small text-muted">Tên file:</label>
-                                <input type="text" id="spriteOutName" class="form-control form-control-sm bg-secondary text-white border-0">
-                            </div>
+        document.getElementById('spriteFrameSize').innerText = `${frameW} x ${frameH} px`;
 
-                            <button id="btnSpriteConvert" class="btn btn-success w-100 fw-bold py-2 mb-3">
-                                <i class="fas fa-download"></i> Tải Xuống
-                            </button>
-                        </div>
-                    </div>
+        const canvas = document.getElementById('framePreviewCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = frameW;
+        canvas.height = frameH;
 
-                </div>
-            </div>
+        let currentFrameIndex = 0;
+        const totalFrames = cols * rows;
 
-        </div>
-    </div>
+        const draw = () => {
+            const c = currentFrameIndex % cols;
+            const r = Math.floor(currentFrameIndex / cols);
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/buzzfeed/libgif-js@master/libgif.js"></script>
-    <script src="./js/gif.js"></script>
-    <script type="module" src="./js/main.js"></script>
-</body>
-</html>
+            ctx.clearRect(0, 0, frameW, frameH);
+            ctx.drawImage(
+                currentSprite, 
+                c * frameW, r * frameH, 
+                frameW, frameH, 
+                0, 0, frameW, frameH
+            );
+
+            currentFrameIndex = (currentFrameIndex + 1) % totalFrames;
+        };
+        
+        draw(); 
+        previewInterval = setInterval(draw, delay);
+    },
+
+    processSprite() {
+        if (!currentSprite) return;
+
+        const format = document.getElementById('spriteFormat').value; // 'gif' or 'png'
+        const targetWidthInput = document.getElementById('spriteTargetWidth').value;
+        const name = document.getElementById('spriteOutName').value || 'result';
+
+        const cols = parseInt(document.getElementById('spriteCols').value);
+        const rows = parseInt(document.getElementById('spriteRows').value);
+        
+        const frameW = Math.floor(currentSprite.width / cols);
+        const frameH = Math.floor(currentSprite.height / rows);
+
+        // Tính toán Resize
+        let finalW = frameW;
+        let finalH = frameH;
+        let scale = 1;
+
+        if (targetWidthInput && parseInt(targetWidthInput) > 0) {
+            finalW = parseInt(targetWidthInput);
+            scale = finalW / frameW;
+            finalH = Math.floor(frameH * scale);
+        }
+
+        // --- XỬ LÝ PNG (Xuất Frame Tĩnh) ---
+        if (format === 'png') {
+            const canvas = document.createElement('canvas');
+            canvas.width = finalW;
+            canvas.height = finalH;
+            const ctx = canvas.getContext('2d');
+            
+            // Lấy frame 0 cho chuẩn
+            ctx.drawImage(currentSprite, 0, 0, frameW, frameH, 0, 0, finalW, finalH);
+            
+            canvas.toBlob((blob) => {
+                this.forceDownload(blob, `${name}.png`);
+            });
+            return;
+        }
+
+        // --- XỬ LÝ GIF (Animation) ---
+        const fps = parseInt(document.getElementById('spriteFPS').value);
+        const loop = document.getElementById('spriteLoop').checked;
+        const delay = 1000 / fps;
+
+        const gif = new GIF({
+            workers: 2,
+            quality: 10,
+            workerScript: './js/gif.worker.js',
+            width: finalW,
+            height: finalH,
+            repeat: loop ? 0 : -1,
+            transparent: 0x000000 
+        });
+
+        const btn = document.getElementById('btnSpriteConvert');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+        btn.disabled = true;
+
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                const canvas = document.createElement('canvas');
+                canvas.width = finalW;
+                canvas.height = finalH;
+                const ctx = canvas.getContext('2d');
+                
+                // Vẽ Resize
+                ctx.drawImage(
+                    currentSprite, 
+                    c * frameW, r * frameH, frameW, frameH, // Source
+                    0, 0, finalW, finalH                    // Dest (Resized)
+                );
+                
+                gif.addFrame(canvas, { delay: delay, copy: true });
+            }
+        }
+
+        gif.on('finished', (blob) => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            this.forceDownload(blob, `${name}.gif`);
+        });
+
+        gif.render();
+    },
+
+    forceDownload(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+};

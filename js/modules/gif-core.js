@@ -12,12 +12,37 @@ export const GifCore = {
         const input = document.getElementById('gifInput');
         const btnDownload = document.getElementById('btnGifDownload');
         const btnReset = document.getElementById('btnGifReset');
+        const dropZone = document.getElementById('gifDropZone'); // <--- MỚI
 
         if(input) {
             input.addEventListener('change', (e) => {
                 if (e.target.files && e.target.files[0]) this.loadGif(e.target.files[0]);
             });
         }
+
+        // --- XỬ LÝ KÉO THẢ CHO GIF ---
+        if (dropZone) {
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }, false);
+            });
+
+            dropZone.addEventListener('dragover', () => dropZone.classList.add('bg-dark', 'border-white'));
+            dropZone.addEventListener('dragleave', () => dropZone.classList.remove('bg-dark', 'border-white'));
+
+            dropZone.addEventListener('drop', (e) => {
+                dropZone.classList.remove('bg-dark', 'border-white');
+                const dt = e.dataTransfer;
+                if (dt.files && dt.files[0] && dt.files[0].type === 'image/gif') {
+                    this.loadGif(dt.files[0]);
+                } else {
+                    alert("Vui lòng thả file GIF!");
+                }
+            });
+        }
+        // ------------------------------
 
         if(btnReset) {
             btnReset.addEventListener('click', () => {
@@ -29,7 +54,6 @@ export const GifCore = {
             btnDownload.addEventListener('click', () => this.processAndExport());
         }
 
-        // Hỗ trợ Paste GIF (Chỉ khi ở tab GIF)
         document.addEventListener('paste', (e) => {
             const activeTab = document.querySelector('.nav-link.active');
             if (activeTab && activeTab.id === 'gif-tab') {
@@ -47,7 +71,6 @@ export const GifCore = {
     loadGif(file) {
         currentFile = file;
         
-        // Update UI
         document.getElementById('gifNameDisplay').innerText = file.name;
         document.getElementById('gifOutName').value = file.name.replace('.gif', '') + '_edited';
         document.getElementById('gifDropZone').style.display = 'none';

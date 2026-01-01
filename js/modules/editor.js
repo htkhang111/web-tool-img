@@ -8,22 +8,49 @@ export const Editor = {
         const imageEl = UI.elements.imageEl;
         imageEl.src = imageSource;
         
-        // Hiển thị vùng editor trước khi init cropper
         UI.showEditor();
 
-        // Hủy instance cũ nếu có để tránh lỗi
         if (this.cropperInstance) {
             this.cropperInstance.destroy();
         }
 
-        // Init Cropper mới
         this.cropperInstance = new Cropper(imageEl, {
-            viewMode: 1, // Giới hạn vùng crop trong khung
+            viewMode: 1, 
             dragMode: 'move',
             autoCropArea: 0.8,
             responsive: true,
+            background: false // Tắt background grid mặc định để thấy trong suốt rõ hơn
         });
     },
+
+    // --- CÁC HÀM MỚI HỖ TRỢ MAGIC TOOLS ---
+    
+    // Thay thế ảnh hiện tại bằng ảnh mới (sau khi xóa nền)
+    replaceImage(newImageSource) {
+        if (this.cropperInstance) {
+            this.cropperInstance.replace(newImageSource);
+        } else {
+            this.loadImage(newImageSource);
+        }
+    },
+
+    getImageElement() {
+        return UI.elements.imageEl;
+    },
+
+    // Tắt kéo thả để dùng Magic Wand click
+    disableDrag() {
+        if (this.cropperInstance) {
+            this.cropperInstance.setDragMode('none');
+        }
+    },
+
+    enableDrag() {
+        if (this.cropperInstance) {
+            this.cropperInstance.setDragMode('move');
+        }
+    },
+    // -------------------------------------
 
     rotate(deg) {
         if (this.cropperInstance) this.cropperInstance.rotate(deg);

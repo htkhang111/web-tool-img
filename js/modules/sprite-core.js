@@ -1,6 +1,4 @@
 // js/modules/sprite-core.js
-// Module xử lý Sprite Sheet -> GIF (Có Drag & Drop + Live Preview)
-
 let currentSprite = null;
 
 export const SpriteCore = {
@@ -11,80 +9,80 @@ export const SpriteCore = {
     setupEvents() {
         const input = document.getElementById('spriteInput');
         const btnConvert = document.getElementById('btnSpriteConvert');
-        const dropZone = document.getElementById('spriteDropZone'); // Lấy Drop Zone
+        const dropZone = document.getElementById('spriteDropZone'); // Lấy cái vùng thả ảnh
         
         const inputsToWatch = ['spriteCols', 'spriteRows'];
 
-        // 1. Sự kiện chọn file từ nút bấm
+        // 1. Nút chọn file
         if (input) {
             input.addEventListener('change', (e) => {
                 if (e.target.files && e.target.files[0]) this.loadSprite(e.target.files[0]);
             });
         }
 
-        // 2. Sự kiện Kéo & Thả (Drag & Drop) - MỚI
+        // 2. XỬ LÝ KÉO & THẢ (DRAG & DROP) - ĐOẠN QUAN TRỌNG
         if (dropZone) {
-            // Ngăn chặn hành vi mặc định của trình duyệt (mở ảnh trong tab mới)
+            // Chặn trình duyệt mở file (Fix lỗi chuyển trang)
             ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-                dropZone.addEventListener(eventName, preventDefaults, false);
+                dropZone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }, false);
             });
 
-            function preventDefaults(e) {
-                e.preventDefault();
-                e.stopPropagation();
-            }
-
-            // Hiệu ứng khi kéo file vào
+            // Hiệu ứng khi kéo vào
             dropZone.addEventListener('dragover', () => {
                 dropZone.classList.add('bg-dark', 'border-white');
             });
 
+            // Hiệu ứng khi kéo ra
             dropZone.addEventListener('dragleave', () => {
                 dropZone.classList.remove('bg-dark', 'border-white');
             });
 
-            // Xử lý khi thả file
+            // Khi thả file
             dropZone.addEventListener('drop', (e) => {
                 dropZone.classList.remove('bg-dark', 'border-white');
                 const dt = e.dataTransfer;
                 const files = dt.files;
                 if (files && files[0]) {
-                    this.loadSprite(files[0]);
+                    this.loadSprite(files[0]); // Gọi hàm load ảnh
                 }
             });
         }
 
-        // 3. Sự kiện Paste (Ctrl + V)
+        // 3. Nút Convert
+        if (btnConvert) {
+            btnConvert.addEventListener('click', () => this.processSprite());
+        }
+
+        // 4. Update preview khi nhập số
+        inputsToWatch.forEach(id => {
+            const el = document.getElementById(id);
+            if(el) {
+                el.addEventListener('input', () => this.updateFrameInfoAndPreview());
+            }
+        });
+
+        // 5. Hỗ trợ Paste
         document.addEventListener('paste', (e) => {
             const activeTab = document.querySelector('.nav-link.active');
-            // Chỉ nhận Paste khi đang ở tab Sprite
             if (activeTab && activeTab.id === 'sprite-tab') {
                 const items = e.clipboardData.items;
                 for (let i = 0; i < items.length; i++) {
                     if (items[i].type.indexOf('image') !== -1) {
-                        const file = items[i].getAsFile();
-                        this.loadSprite(file);
+                        this.loadSprite(items[i].getAsFile());
                         break;
                     }
                 }
             }
         });
-
-        // 4. Sự kiện nút chuyển đổi
-        if (btnConvert) btnConvert.addEventListener('click', () => this.processSprite());
-
-        // 5. Update preview khi nhập số liệu
-        inputsToWatch.forEach(id => {
-            const el = document.getElementById(id);
-            if(el) el.addEventListener('input', () => this.updateFrameInfoAndPreview());
-        });
     },
 
     loadSprite(file) {
-        // Ẩn vùng Drop, hiện vùng Editor
+        // Reset UI
         document.getElementById('spriteDropZone').style.display = 'none';
         document.getElementById('spriteEditorArea').style.display = 'flex';
-        
         document.getElementById('spriteNameDisplay').innerText = file.name;
         document.getElementById('spriteOutName').value = file.name.split('.')[0] + '_anim';
         document.getElementById('spriteResultArea').classList.add('d-none');
@@ -92,14 +90,12 @@ export const SpriteCore = {
         const img = new Image();
         img.onload = () => {
             currentSprite = img;
-            // Hiển thị kích thước gốc
             document.getElementById('spriteOriginalSize').innerText = `${img.width} x ${img.height} px`;
             
-            // Mặc định reset về 4 cột 1 hàng (thường gặp)
+            // Mặc định
             document.getElementById('spriteCols').value = 4; 
             document.getElementById('spriteRows').value = 1;
             
-            // Vẽ preview
             this.updateFrameInfoAndPreview();
         };
         img.src = URL.createObjectURL(file);
@@ -111,7 +107,6 @@ export const SpriteCore = {
         const cols = parseInt(document.getElementById('spriteCols').value) || 1;
         const rows = parseInt(document.getElementById('spriteRows').value) || 1;
 
-        // Tính kích thước 1 frame (Làm tròn xuống để tránh lẻ pixel)
         const frameW = Math.floor(currentSprite.width / cols);
         const frameH = Math.floor(currentSprite.height / rows);
 
@@ -120,12 +115,10 @@ export const SpriteCore = {
         const canvas = document.getElementById('framePreviewCanvas');
         const ctx = canvas.getContext('2d');
         
-        // Cập nhật kích thước canvas
         canvas.width = frameW;
         canvas.height = frameH;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Vẽ frame đầu tiên (góc 0,0)
         ctx.drawImage(currentSprite, 0, 0, frameW, frameH, 0, 0, frameW, frameH);
     },
 
@@ -155,16 +148,13 @@ export const SpriteCore = {
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xử lý...';
         btn.disabled = true;
 
-        // Cắt từng frame và thêm vào GIF
         for (let r = 0; r < rows; r++) {
             for (let c = 0; c < cols; c++) {
                 const canvas = document.createElement('canvas');
                 canvas.width = frameWidth;
                 canvas.height = frameHeight;
                 const ctx = canvas.getContext('2d');
-                
                 ctx.drawImage(currentSprite, c * frameWidth, r * frameHeight, frameWidth, frameHeight, 0, 0, frameWidth, frameHeight);
-                
                 gif.addFrame(canvas, { delay: speed, copy: true });
             }
         }
@@ -172,9 +162,8 @@ export const SpriteCore = {
         gif.on('finished', (blob) => {
             btn.innerHTML = originalText;
             btn.disabled = false;
-            
-            // Tải xuống
             const url = URL.createObjectURL(blob);
+            
             const a = document.createElement('a');
             a.href = url;
             a.download = (document.getElementById('spriteOutName').value || 'sprite_anim') + '.gif';
@@ -182,7 +171,6 @@ export const SpriteCore = {
             a.click();
             document.body.removeChild(a);
 
-            // Hiện kết quả
             const resImg = document.getElementById('spriteResultImg');
             resImg.src = url;
             document.getElementById('spriteResultArea').classList.remove('d-none');

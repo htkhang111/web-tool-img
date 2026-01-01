@@ -1,8 +1,8 @@
 // js/modules/sprite-core.js
-// Module xử lý Sprite Sheet -> GIF (Có Drag & Drop + Live Animation Preview)
+// Logic: Drag & Drop, Animation Preview, Silent Export
 
 let currentSprite = null;
-let previewInterval = null; // Biến lưu vòng lặp animation
+let previewInterval = null;
 
 export const SpriteCore = {
     init() {
@@ -14,17 +14,15 @@ export const SpriteCore = {
         const btnConvert = document.getElementById('btnSpriteConvert');
         const dropZone = document.getElementById('spriteDropZone');
         
-        // Theo dõi các ô input để cập nhật animation ngay lập tức
         const inputsToWatch = ['spriteCols', 'spriteRows', 'spriteFPS'];
 
-        // 1. Input chọn file
         if (input) {
             input.addEventListener('change', (e) => {
                 if (e.target.files && e.target.files[0]) this.loadSprite(e.target.files[0]);
             });
         }
 
-        // 2. Kéo & Thả (Drag & Drop)
+        // Drag & Drop
         if (dropZone) {
             ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
                 dropZone.addEventListener(eventName, (e) => {
@@ -33,26 +31,24 @@ export const SpriteCore = {
                 }, false);
             });
 
-            dropZone.addEventListener('dragover', () => dropZone.classList.add('bg-dark', 'border-white'));
-            dropZone.addEventListener('dragleave', () => dropZone.classList.remove('bg-dark', 'border-white'));
+            dropZone.addEventListener('dragover', () => dropZone.classList.add('active'));
+            dropZone.addEventListener('dragleave', () => dropZone.classList.remove('active'));
 
             dropZone.addEventListener('drop', (e) => {
-                dropZone.classList.remove('bg-dark', 'border-white');
+                dropZone.classList.remove('active');
                 const dt = e.dataTransfer;
                 if (dt.files && dt.files[0]) this.loadSprite(dt.files[0]);
             });
         }
 
-        // 3. Nút Render
         if (btnConvert) btnConvert.addEventListener('click', () => this.processSprite());
 
-        // 4. Sự kiện thay đổi thông số -> Chạy lại Animation Preview
         inputsToWatch.forEach(id => {
             const el = document.getElementById(id);
             if(el) el.addEventListener('input', () => this.startPreviewAnimation());
         });
 
-        // 5. Paste Support
+        // Paste Support
         document.addEventListener('paste', (e) => {
             const activeTab = document.querySelector('.nav-link.active');
             if (activeTab && activeTab.id === 'sprite-tab') {
@@ -72,46 +68,41 @@ export const SpriteCore = {
         document.getElementById('spriteEditorArea').style.display = 'flex';
         document.getElementById('spriteNameDisplay').innerText = file.name;
         document.getElementById('spriteOutName').value = file.name.split('.')[0] + '_anim';
-        document.getElementById('spriteResultArea').classList.add('d-none');
+        
+        // Ẩn vùng kết quả nếu đang hiện
+        const resArea = document.getElementById('spriteResultArea');
+        if(resArea) resArea.classList.add('d-none');
 
         const img = new Image();
         img.onload = () => {
             currentSprite = img;
             document.getElementById('spriteOriginalSize').innerText = `${img.width} x ${img.height} px`;
             
-            // Reset giá trị mặc định
             document.getElementById('spriteCols').value = 4; 
             document.getElementById('spriteRows').value = 1;
-            document.getElementById('spriteFPS').value = 12; // Mặc định 12 FPS cho mượt
+            document.getElementById('spriteFPS').value = 12;
             
-            // Bắt đầu chạy Animation Preview
             this.startPreviewAnimation();
         };
         img.src = URL.createObjectURL(file);
     },
 
-    // --- HÀM TẠO HIỆU ỨNG CHUYỂN ĐỘNG (PREVIEW) ---
     startPreviewAnimation() {
         if (!currentSprite) return;
         
-        // Xóa vòng lặp cũ để tránh bị chồng chéo
         if (previewInterval) clearInterval(previewInterval);
 
         const cols = parseInt(document.getElementById('spriteCols').value) || 1;
         const rows = parseInt(document.getElementById('spriteRows').value) || 1;
         const fps = parseInt(document.getElementById('spriteFPS').value) || 12;
         
-        // Tính thời gian nghỉ giữa các frame (ms)
         const delay = 1000 / fps;
 
-        // Kích thước 1 frame
         const frameW = Math.floor(currentSprite.width / cols);
         const frameH = Math.floor(currentSprite.height / rows);
 
-        // Update Text
         document.getElementById('spriteFrameSize').innerText = `${frameW} x ${frameH} px`;
 
-        // Setup Canvas
         const canvas = document.getElementById('framePreviewCanvas');
         const ctx = canvas.getContext('2d');
         canvas.width = frameW;
@@ -120,31 +111,22 @@ export const SpriteCore = {
         let currentFrameIndex = 0;
         const totalFrames = cols * rows;
 
-        // Hàm vẽ frame hiện tại
         const draw = () => {
-            // Tính toán tọa độ X, Y của frame trong ảnh gốc
-            const c = currentFrameIndex % cols; // Cột hiện tại
-            const r = Math.floor(currentFrameIndex / cols); // Hàng hiện tại
+            const c = currentFrameIndex % cols;
+            const r = Math.floor(currentFrameIndex / cols);
 
-            // Xóa canvas
             ctx.clearRect(0, 0, frameW, frameH);
-            
-            // Vẽ phần ảnh cắt được lên canvas
             ctx.drawImage(
                 currentSprite, 
-                c * frameW, r * frameH,  // Tọa độ cắt (Source X, Y)
-                frameW, frameH,          // Kích thước cắt (Source W, H)
-                0, 0, frameW, frameH     // Vẽ lên Canvas (Dest X, Y, W, H)
+                c * frameW, r * frameH, 
+                frameW, frameH, 
+                0, 0, frameW, frameH
             );
 
-            // Tăng index cho lần sau (vòng lại về 0 nếu hết)
             currentFrameIndex = (currentFrameIndex + 1) % totalFrames;
         };
         
-        // Vẽ ngay lập tức frame đầu tiên
         draw(); 
-
-        // Thiết lập vòng lặp chạy liên tục
         previewInterval = setInterval(draw, delay);
     },
 
@@ -173,7 +155,7 @@ export const SpriteCore = {
 
         const btn = document.getElementById('btnSpriteConvert');
         const originalText = btn.innerHTML;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xử lý...';
+        btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Processing...';
         btn.disabled = true;
 
         for (let r = 0; r < rows; r++) {
@@ -190,18 +172,19 @@ export const SpriteCore = {
         gif.on('finished', (blob) => {
             btn.innerHTML = originalText;
             btn.disabled = false;
-            const url = URL.createObjectURL(blob);
             
+            // Chỉ tải xuống, không hiện ảnh kết quả nữa
+            const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
             a.download = (document.getElementById('spriteOutName').value || 'sprite_anim') + '.gif';
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
-
-            const resImg = document.getElementById('spriteResultImg');
-            resImg.src = url;
-            document.getElementById('spriteResultArea').classList.remove('d-none');
+            
+            // Xóa vùng kết quả nếu có
+            const resArea = document.getElementById('spriteResultArea');
+            if(resArea) resArea.classList.add('d-none');
         });
 
         gif.render();

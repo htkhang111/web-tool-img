@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tool Cắt & Nén Ảnh - Ghét Hải Sản</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-dark text-light">
+
+    <div class="container py-5">
+        <h2 class="text-center mb-4 text-info">🛠️ Image Tool - By Trương Khuynh Hàn</h2>
+        
+        <div class="card bg-secondary text-white mb-4">
+            <div class="card-body text-center">
+                <label for="imageInput" class="btn btn-primary btn-lg">📂 Chọn Ảnh (JPG, PNG, GIF...)</label>
+                <input type="file" id="imageInput" accept="image/*" hidden>
+                <p class="mt-2 small text-warning" id="fileName">Chưa chọn file nào</p>
+            </div>
+        </div>
+
+        <div class="row" id="editorArea" style="display: none;">
+            <div class="col-md-8 mb-3">
+                <div class="img-container">
+                    <img id="image" src="" alt="Picture">
+                </div>
+                <div class="mt-3 btn-group w-100">
+                    <button type="button" class="btn btn-outline-light" onclick="rotate(-90)">↺ Xoay Trái</button>
+                    <button type="button" class="btn btn-outline-light" onclick="rotate(90)">↻ Xoay Phải</button>
+                    <button type="button" class="btn btn-outline-light" onclick="resetCrop()">Mặc định</button>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card bg-dark border-secondary p-3">
+                    <h5 class="card-title text-info">⚙️ Cấu hình Xuất</h5>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Tên File Mới:</label>
+                        <input type="text" id="outName" class="form-control bg-secondary text-white border-0" placeholder="vd: anh-moi">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Định dạng (Đuôi):</label>
+                        <select id="outFormat" class="form-select bg-secondary text-white border-0">
+                            <option value="image/jpeg">.JPG (Nén tốt)</option>
+                            <option value="image/png">.PNG (Nền trong suốt)</option>
+                            <option value="image/webp">.WEBP (Web tối ưu)</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Chất lượng nén (0.1 - 1.0):</label>
+                        <input type="range" class="form-range" id="qualityRange" min="0.1" max="1.0" step="0.1" value="0.8">
+                        <div class="text-end small text-info" id="qualityVal">80%</div>
+                    </div>
+
+                    <button id="btnDownload" class="btn btn-success w-100 py-2 fw-bold">⬇️ Xử Lý & Tải Về</button>
+                </div>
+
+                <div class="mt-3 text-center">
+                    <h6>Xem trước kết quả:</h6>
+                    <div id="resultPreview" class="border border-secondary" style="min-height: 100px; display:flex; align-items:center; justify-content:center;">
+                        <span class="text-muted small">Ảnh sẽ hiện ở đây</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

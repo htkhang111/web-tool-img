@@ -2,7 +2,6 @@
 import { UI } from './ui.js';
 
 export const Loader = {
-    // Callback sẽ được gọi khi tải ảnh thành công
     onImageLoaded: null, 
 
     init(callback) {
@@ -11,25 +10,28 @@ export const Loader = {
         this.setupPasteEvent();
     },
 
-    // Xử lý nút chọn file truyền thống
     setupFileInput() {
         const input = document.getElementById('imageInput');
-        input.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) this.processFile(file);
-        });
+        if (input) {
+            input.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) this.processFile(file);
+            });
+        }
     },
 
-    // Xử lý Ctrl + V
     setupPasteEvent() {
         document.addEventListener('paste', (e) => {
+            // --- ĐOẠN MỚI THÊM VÀO: KIỂM TRA TAB ---
+            // Nếu đang ở Tab GIF (id="gif-tab") thì Loader (Ảnh tĩnh) không được can thiệp
+            const activeTab = document.querySelector('.nav-link.active');
+            if (activeTab && activeTab.id !== 'photo-tab') return; 
+            // ---------------------------------------
+
             const items = e.clipboardData.items;
             for (let i = 0; i < items.length; i++) {
-                // Tìm item là ảnh
                 if (items[i].type.indexOf('image') !== -1) {
                     const file = items[i].getAsFile();
-                    // Gán tên tạm vì ảnh clipboard thường không có tên
-                    // "Pasted_timestamp.png"
                     const dummyFile = new File([file], `Pasted_${Date.now()}.png`, { type: file.type });
                     this.processFile(dummyFile);
                     break; 
@@ -39,12 +41,9 @@ export const Loader = {
     },
 
     processFile(file) {
-        // Cập nhật UI tên file
         UI.updateFileInfo(file.name);
-
         const reader = new FileReader();
         reader.onload = (e) => {
-            // Gọi callback để editor xử lý URL ảnh
             if (this.onImageLoaded) {
                 this.onImageLoaded(e.target.result);
             }

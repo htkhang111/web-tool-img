@@ -6,8 +6,12 @@ export const Loader = {
     init(callback) {
         this.onImageLoaded = callback;
         this.setupFileInput();
-        this.setupDropZone(); // <--- MỚI: Gọi hàm xử lý kéo thả
-        this.setupPasteEvent();
+        
+        // Chờ 1 chút để DOM ổn định rồi mới gán sự kiện
+        setTimeout(() => {
+            this.setupDropZone();
+            this.setupPasteEvent();
+        }, 100);
     },
 
     setupFileInput() {
@@ -20,55 +24,67 @@ export const Loader = {
         }
     },
 
-    // --- KHÔI PHỤC KÉO THẢ (DRAG & DROP) ---
     setupDropZone() {
         const dropZone = document.getElementById('dropZone');
-        if (!dropZone) return;
+        if (!dropZone) {
+            console.error("Lỗi: Không tìm thấy ID 'dropZone'");
+            return;
+        }
 
-        // Chặn trình duyệt mở ảnh
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            dropZone.addEventListener(eventName, (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-            }, false);
+        // Bắt buộc chặn Dragover thì Drop mới hoạt động
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault(); 
+            e.stopPropagation();
+            dropZone.classList.add('bg-dark', 'border-white');
         });
 
-        // Hiệu ứng khi rê chuột
-        dropZone.addEventListener('dragover', () => {
-            dropZone.classList.add('bg-dark', 'border-white'); // Đổi màu
-        });
-
-        dropZone.addEventListener('dragleave', () => {
-            dropZone.classList.remove('bg-dark', 'border-white'); // Trả màu
-        });
-
-        // Xử lý khi thả file
-        dropZone.addEventListener('drop', (e) => {
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
             dropZone.classList.remove('bg-dark', 'border-white');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.remove('bg-dark', 'border-white');
+            
             const dt = e.dataTransfer;
             const files = dt.files;
             if (files && files[0]) {
-                this.processFile(files[0]);
+                if (files[0].type.startsWith('image/')) {
+                    this.processFile(files[0]);
+                } else {
+                    alert("Chỉ hỗ trợ file ảnh!");
+                }
             }
         });
     },
 
     setupPasteEvent() {
-        document.addEventListener('paste', (e) => {
-            const activeTab = document.querySelector('.nav-link.active');
-            // Chỉ paste nếu đang ở Tab Cắt Ảnh
-            if (activeTab && activeTab.id !== 'photo-tab') return; 
+        // Xóa sự kiện cũ nếu có để tránh trùng lặp
+        document.removeEventListener('paste', this.handlePaste);
+        // Gán sự kiện mới
+        document.addEventListener('paste', this.handlePaste.bind(this));
+    },
 
-            const items = e.clipboardData.items;
-            for (let i = 0; i < items.length; i++) {
-                if (items[i].type.indexOf('image') !== -1) {
-                    const file = items[i].getAsFile();
-                    const dummyFile = new File([file], `Pasted_${Date.now()}.png`, { type: file.type });
-                    this.processFile(dummyFile);
-                    break; 
-                }
+    handlePaste(e) {
+        // Kiểm tra xem đang đứng ở Tab Cắt Ảnh hay không
+        // Logic: Tab Active phải có ID là 'photo-tab'
+        const activeTab = document.querySelector('.nav-link.active');
+        if (!activeTab || activeTab.id !== 'photo-tab') return;
+
+        const items = e.clipboardData.items;
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf('image') !== -1) {
+                const file = items[i].getAsFile();
+                // Tạo tên file giả để hiển thị
+                const dummyFile = new File([file], `Pasted_Image.png`, { type: file.type });
+                this.processFile(dummyFile);
+                e.preventDefault(); // Chặn hành vi paste mặc định
+                break; 
             }
-        });
+        }
     },
 
     processFile(file) {

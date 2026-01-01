@@ -5,14 +5,16 @@ let currentFile = null;
 
 export const GifCore = {
     init() {
-        this.setupEvents();
+        setTimeout(() => {
+            this.setupEvents();
+        }, 100);
     },
 
     setupEvents() {
         const input = document.getElementById('gifInput');
         const btnDownload = document.getElementById('btnGifDownload');
         const btnReset = document.getElementById('btnGifReset');
-        const dropZone = document.getElementById('gifDropZone'); // <--- MỚI
+        const dropZone = document.getElementById('gifDropZone');
 
         if(input) {
             input.addEventListener('change', (e) => {
@@ -20,29 +22,35 @@ export const GifCore = {
             });
         }
 
-        // --- XỬ LÝ KÉO THẢ CHO GIF ---
+        // --- DRAG & DROP ---
         if (dropZone) {
-            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-                dropZone.addEventListener(eventName, (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                }, false);
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.classList.add('bg-dark', 'border-white');
             });
 
-            dropZone.addEventListener('dragover', () => dropZone.classList.add('bg-dark', 'border-white'));
-            dropZone.addEventListener('dragleave', () => dropZone.classList.remove('bg-dark', 'border-white'));
+            dropZone.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.classList.remove('bg-dark', 'border-white');
+            });
 
             dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 dropZone.classList.remove('bg-dark', 'border-white');
+
                 const dt = e.dataTransfer;
-                if (dt.files && dt.files[0] && dt.files[0].type === 'image/gif') {
-                    this.loadGif(dt.files[0]);
-                } else {
-                    alert("Vui lòng thả file GIF!");
+                if (dt.files && dt.files[0]) {
+                    if (dt.files[0].type === 'image/gif') {
+                        this.loadGif(dt.files[0]);
+                    } else {
+                        alert("Vui lòng thả đúng file GIF!");
+                    }
                 }
             });
         }
-        // ------------------------------
 
         if(btnReset) {
             btnReset.addEventListener('click', () => {
@@ -54,6 +62,7 @@ export const GifCore = {
             btnDownload.addEventListener('click', () => this.processAndExport());
         }
 
+        // --- PASTE EVENT ---
         document.addEventListener('paste', (e) => {
             const activeTab = document.querySelector('.nav-link.active');
             if (activeTab && activeTab.id === 'gif-tab') {
@@ -61,6 +70,7 @@ export const GifCore = {
                 for (let i = 0; i < items.length; i++) {
                     if (items[i].type === 'image/gif') {
                         this.loadGif(items[i].getAsFile());
+                        e.preventDefault();
                         break;
                     }
                 }
@@ -82,6 +92,8 @@ export const GifCore = {
             cropperInstance.destroy();
             cropperInstance = null;
         }
+        
+        // Hack: Clone node để reset libgif
         const newImg = imgElement.cloneNode(true);
         imgElement.parentNode.replaceChild(newImg, imgElement);
         newImg.src = URL.createObjectURL(file);

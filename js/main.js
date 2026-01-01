@@ -5,7 +5,12 @@ import { Editor } from './modules/editor.js';
 import { Exporter } from './modules/exporter.js';
 import { GifCore } from './modules/gif-core.js';
 import { SpriteCore } from './modules/sprite-core.js'; 
-import { Magic } from './modules/magic.js'; // <-- MỚI
+import { Magic } from './modules/magic.js';
+
+// --- KHIÊN CHẮN: Chặn trình duyệt tự mở file khi kéo trượt ra ngoài ---
+window.addEventListener('dragover', (e) => e.preventDefault(), false);
+window.addEventListener('drop', (e) => e.preventDefault(), false);
+// ---------------------------------------------------------------------
 
 // Init Phase 1
 Loader.init((imageSource) => Editor.loadImage(imageSource));
@@ -26,7 +31,7 @@ if(el('btnDownload')) el('btnDownload').onclick = () => {
     Exporter.download(canvas, name, format, quality);
 };
 
-// Init Phase 2, 3 & 4
+// Init Modules
 GifCore.init();
 SpriteCore.init();
-Magic.init(); // <-- MỚI
+Magic.init();

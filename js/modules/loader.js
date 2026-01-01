@@ -1,7 +1,9 @@
+// js/modules/loader.js
 import { UI } from './ui.js';
 
 export const Loader = {
     onImageLoaded: null, 
+    boundHandlePaste: null, // Biến lưu trữ hàm đã bind để remove chính xác
 
     init(callback) {
         this.onImageLoaded = callback;
@@ -62,10 +64,16 @@ export const Loader = {
     },
 
     setupPasteEvent() {
-        // Xóa sự kiện cũ nếu có để tránh trùng lặp
-        document.removeEventListener('paste', this.handlePaste);
+        // FIX: Xóa sự kiện cũ bằng tham chiếu đã lưu (boundHandlePaste)
+        if (this.boundHandlePaste) {
+            document.removeEventListener('paste', this.boundHandlePaste);
+        }
+
+        // Tạo tham chiếu mới và lưu lại
+        this.boundHandlePaste = this.handlePaste.bind(this);
+
         // Gán sự kiện mới
-        document.addEventListener('paste', this.handlePaste.bind(this));
+        document.addEventListener('paste', this.boundHandlePaste);
     },
 
     handlePaste(e) {

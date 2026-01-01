@@ -8,8 +8,14 @@ import { SpriteCore } from './modules/sprite-core.js';
 import { Magic } from './modules/magic.js';
 
 // --- KHIÊN CHẮN: Chặn trình duyệt tự mở file khi kéo trượt ra ngoài ---
-window.addEventListener('dragover', (e) => e.preventDefault(), false);
-window.addEventListener('drop', (e) => e.preventDefault(), false);
+// Fix: Thêm dragenter để chặn triệt để hơn trên một số trình duyệt
+['dragenter', 'dragover', 'drop'].forEach(eventName => {
+    window.addEventListener(eventName, (e) => {
+        // Chỉ preventDefault ở window level để không reload trang
+        // Các vùng dropZone cụ thể sẽ handle việc stopPropagation
+        e.preventDefault();
+    }, false);
+});
 // ---------------------------------------------------------------------
 
 // Init Phase 1

@@ -19,13 +19,18 @@
 
         <ul class="nav nav-pills mb-4 justify-content-center" id="toolTabs">
             <li class="nav-item">
-                <button class="nav-link active px-4" id="photo-tab" data-bs-toggle="pill" data-bs-target="#photo-panel">
-                    <i class="fas fa-image me-2"></i>Cắt & Nén Ảnh (Static)
+                <button class="nav-link active px-3" id="photo-tab" data-bs-toggle="pill" data-bs-target="#photo-panel">
+                    <i class="fas fa-image me-2"></i>Cắt Ảnh
                 </button>
             </li>
             <li class="nav-item">
-                <button class="nav-link px-4" id="gif-tab" data-bs-toggle="pill" data-bs-target="#gif-panel">
-                    <i class="fas fa-film me-2"></i>Xử Lý GIF (Beta)
+                <button class="nav-link px-3" id="gif-tab" data-bs-toggle="pill" data-bs-target="#gif-panel">
+                    <i class="fas fa-film me-2"></i>Edit GIF
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link px-3" id="sprite-tab" data-bs-toggle="pill" data-bs-target="#sprite-panel">
+                    <i class="fas fa-ghost me-2"></i>Sprite to GIF
                 </button>
             </li>
         </ul>
@@ -36,14 +41,12 @@
                 <div class="card bg-secondary text-white mb-4 shadow-sm dashed-border">
                     <div class="card-body text-center py-5" id="dropZone">
                         <i class="fas fa-cloud-upload-alt fa-3x mb-3 text-info"></i>
-                        <h5>Kéo thả, Paste (Ctrl+V) hoặc Chọn ảnh</h5>
-                        <p class="text-white-50 small">Hỗ trợ: PNG, JPG, WEBP, BMP</p>
-                        <label for="imageInput" class="btn btn-info fw-bold mt-2">📂 Duyệt File</label>
+                        <h5>Cắt & Nén Ảnh Tĩnh (JPG, PNG)</h5>
+                        <label for="imageInput" class="btn btn-info fw-bold mt-2">📂 Chọn Ảnh</label>
                         <input type="file" id="imageInput" accept="image/*" hidden>
                         <div class="mt-3 small text-warning fw-bold" id="fileNameDisplay"></div>
                     </div>
                 </div>
-
                 <div class="row" id="editorArea" style="display: none;">
                     <div class="col-lg-8 mb-3">
                         <div class="img-container border border-secondary shadow-lg">
@@ -56,30 +59,17 @@
                             <button class="btn btn-outline-danger btn-sm ms-3" id="btnReset"><i class="fas fa-sync"></i> Reset</button>
                         </div>
                     </div>
-
                     <div class="col-lg-4">
                         <div class="card bg-dark border-secondary p-3 shadow-sm">
-                            <h5 class="text-info mb-3"><i class="fas fa-file-export"></i> Xuất File</h5>
-                            <div class="mb-3">
-                                <label class="form-label small">Tên file:</label>
-                                <input type="text" id="outName" class="form-control form-control-sm bg-secondary text-white border-0">
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label small">Định dạng:</label>
-                                <select id="outFormat" class="form-select form-select-sm bg-secondary text-white border-0">
-                                    <option value="image/jpeg">JPG (Ảnh chụp/Nén tốt)</option>
-                                    <option value="image/png">PNG (Giữ nền trong suốt)</option>
-                                    <option value="image/webp">WEBP (Tối ưu web)</option>
-                                </select>
-                            </div>
-                            <div class="mb-4">
-                                <label class="form-label small d-flex justify-content-between">
-                                    <span>Chất lượng</span>
-                                    <span id="qualityDisplay" class="text-info fw-bold">80%</span>
-                                </label>
-                                <input type="range" class="form-range" id="qualityRange" min="0.1" max="1.0" step="0.1" value="0.8">
-                            </div>
-                            <button id="btnDownload" class="btn btn-success w-100 fw-bold"><i class="fas fa-download me-2"></i>Tải Xuống</button>
+                            <h5 class="text-info mb-3">Xuất File</h5>
+                            <input type="text" id="outName" class="form-control form-control-sm bg-secondary text-white border-0 mb-3" placeholder="Tên file...">
+                            <select id="outFormat" class="form-select form-select-sm bg-secondary text-white border-0 mb-3">
+                                <option value="image/jpeg">JPG</option>
+                                <option value="image/png">PNG</option>
+                                <option value="image/webp">WEBP</option>
+                            </select>
+                            <input type="range" class="form-range" id="qualityRange" min="0.1" max="1.0" step="0.1" value="0.8">
+                            <button id="btnDownload" class="btn btn-success w-100 fw-bold mt-2">Tải Xuống</button>
                         </div>
                     </div>
                 </div>
@@ -89,46 +79,82 @@
                 <div class="card bg-secondary text-white mb-4 shadow-sm dashed-border" id="gifDropZone">
                     <div class="card-body text-center py-5">
                         <i class="fas fa-film fa-3x mb-3 text-warning"></i>
-                        <h5>Chọn file GIF để xử lý</h5>
-                        <label for="gifInput" class="btn btn-warning fw-bold mt-2">📂 Duyệt GIF</label>
+                        <h5>Chỉnh sửa file GIF động</h5>
+                        <label for="gifInput" class="btn btn-warning fw-bold mt-2">📂 Chọn GIF</label>
                         <input type="file" id="gifInput" accept="image/gif" hidden>
                         <div class="mt-3 small fw-bold" id="gifNameDisplay"></div>
                     </div>
                 </div>
-
                 <div class="row" id="gifEditorArea" style="display: none;">
                     <div class="col-lg-8 mb-3">
                         <div class="img-container border border-secondary shadow-lg bg-black position-relative">
                             <img id="gifImagePlaceholder" src="" style="max-width: 100%; display: block;">
                             <div id="gifLoading" class="position-absolute top-0 start-0 w-100 h-100 bg-dark bg-opacity-75 d-flex align-items-center justify-content-center flex-column" style="display: none !important; z-index: 10;">
                                 <div class="spinner-border text-warning" role="status"></div>
-                                <div class="mt-2 text-white" id="gifProgressText">Đang xử lý... 0%</div>
+                                <div class="mt-2 text-white" id="gifProgressText">Đang xử lý...</div>
                             </div>
                         </div>
-                        <div class="mt-3 text-center">
-                             <button class="btn btn-outline-warning btn-sm" id="btnGifReset">Reset Khung Cắt</button>
-                        </div>
+                        <div class="mt-3 text-center"><button class="btn btn-outline-warning btn-sm" id="btnGifReset">Reset Khung</button></div>
                     </div>
-
                     <div class="col-lg-4">
                         <div class="card bg-dark border-secondary p-3 shadow-sm">
-                            <h5 class="text-warning mb-3"><i class="fas fa-cog"></i> Cấu Hình GIF</h5>
+                            <h5 class="text-warning mb-3">Cấu Hình GIF</h5>
+                            <input type="text" id="gifOutName" class="form-control form-control-sm bg-secondary text-white border-0 mb-3" placeholder="Tên file...">
+                            <input type="number" id="gifWidth" placeholder="Resize (px)" class="form-control form-control-sm bg-secondary text-white border-0 mb-3">
+                            <label class="small text-muted">Quality:</label>
+                            <input type="range" class="form-range" id="gifQuality" min="1" max="20" step="1" value="10">
+                            <button id="btnGifDownload" class="btn btn-warning w-100 fw-bold mt-3">Render & Tải</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="sprite-panel">
+                <div class="card bg-secondary text-white mb-4 shadow-sm dashed-border" id="spriteDropZone">
+                    <div class="card-body text-center py-5">
+                        <i class="fas fa-ghost fa-3x mb-3 text-danger"></i>
+                        <h5>Chuyển Sprite Sheet thành GIF</h5>
+                        <p class="small text-white-50">Upload ảnh chứa nhiều frame (nhân vật game, hiệu ứng...)</p>
+                        <label for="spriteInput" class="btn btn-danger fw-bold mt-2">📂 Chọn Sprite Sheet</label>
+                        <input type="file" id="spriteInput" accept="image/*" hidden>
+                        <div class="mt-3 small fw-bold" id="spriteNameDisplay"></div>
+                    </div>
+                </div>
+
+                <div class="row" id="spriteEditorArea" style="display: none;">
+                    <div class="col-lg-8 mb-3">
+                        <div class="bg-black border border-secondary p-3 text-center" style="min-height: 300px; overflow: auto;">
+                            <div id="spritePreview"></div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="card bg-dark border-secondary p-3 shadow-sm">
+                            <h5 class="text-danger mb-3">Cấu Hình Sprite</h5>
+                            <input type="text" id="spriteOutName" class="form-control form-control-sm bg-secondary text-white border-0 mb-3" placeholder="Tên file...">
+                            
+                            <div class="row g-2 mb-3">
+                                <div class="col-6">
+                                    <label class="small text-muted">Số Cột (Ngang):</label>
+                                    <input type="number" id="spriteCols" class="form-control form-control-sm bg-secondary text-white border-0" value="4">
+                                </div>
+                                <div class="col-6">
+                                    <label class="small text-muted">Số Hàng (Dọc):</label>
+                                    <input type="number" id="spriteRows" class="form-control form-control-sm bg-secondary text-white border-0" value="1">
+                                </div>
+                            </div>
+
                             <div class="mb-3">
-                                <label class="form-label small">Tên file:</label>
-                                <input type="text" id="gifOutName" class="form-control form-control-sm bg-secondary text-white border-0">
+                                <label class="small text-muted">Tốc độ (ms/frame):</label>
+                                <input type="number" id="spriteSpeed" class="form-control form-control-sm bg-secondary text-white border-0" value="150">
+                                <div class="form-text text-white-50 x-small">Số càng nhỏ chạy càng nhanh</div>
                             </div>
-                            <div class="mb-3">
-                                <label class="form-label small">Resize (Chiều rộng px):</label>
-                                <input type="number" id="gifWidth" placeholder="Giữ nguyên" class="form-control form-control-sm bg-secondary text-white border-0">
+
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="spriteLoop" checked>
+                                <label class="form-check-label small" for="spriteLoop">Lặp lại vô tận (Loop)</label>
                             </div>
-                            <div class="mb-4">
-                                <label class="form-label small d-flex justify-content-between">
-                                    <span>Chất lượng (1-20)</span>
-                                    <span class="text-warning">Mặc định: 10</span>
-                                </label>
-                                <input type="range" class="form-range" id="gifQuality" min="1" max="20" step="1" value="10">
-                            </div>
-                            <button id="btnGifDownload" class="btn btn-warning w-100 fw-bold"><i class="fas fa-cogs me-2"></i>Render & Tải Về</button>
+
+                            <button id="btnSpriteConvert" class="btn btn-danger w-100 fw-bold">🚀 Chuyển Đổi</button>
                         </div>
                     </div>
                 </div>

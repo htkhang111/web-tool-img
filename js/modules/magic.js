@@ -1,9 +1,10 @@
 // js/modules/magic.js
 import { Editor } from './editor.js';
+// Import thư viện AI xịn xò (chạy trực tiếp trên browser)
+import imglyRemoveBackground from "https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.3.0/+esm";
 
 export const Magic = {
     isWandActive: false,
-    apiKey: localStorage.getItem('removeBgApiKey') || '',
 
     init() {
         this.setupEvents();
@@ -13,7 +14,7 @@ export const Magic = {
         const btnWand = document.getElementById('btnMagicWand');
         const btnAI = document.getElementById('btnAiRemove');
 
-        // 1. Nút Magic Wand (Cây đũa thần)
+        // 1. Nút Magic Wand
         if (btnWand) {
             btnWand.addEventListener('click', () => {
                 this.isWandActive = !this.isWandActive;
@@ -21,19 +22,18 @@ export const Magic = {
             });
         }
 
-        // 2. Sự kiện Click lên ảnh để xóa màu (Khi Wand Active)
-        // Lưu ý: CropperJS tạo ra các lớp div đè lên ảnh, ta cần bắt sự kiện toàn cục hoặc trên container
+        // 2. Sự kiện Click Magic Wand (Bắt sự kiện chuẩn hơn)
         document.addEventListener('click', (e) => {
             if (!this.isWandActive) return;
             
-            // Chỉ xử lý khi click vào vùng ảnh cropper
-            const cropperCanvas = document.querySelector('.cropper-canvas');
-            if (cropperCanvas && cropperCanvas.contains(e.target)) {
-                this.handleWandClick(e, cropperCanvas);
+            // Tìm ảnh trong vùng crop
+            // CropperJS tạo cấu trúc: .cropper-canvas > img
+            if (e.target.tagName === 'IMG' && e.target.closest('.cropper-canvas')) {
+                this.handleWandClick(e);
             }
         });
 
-        // 3. Nút AI Remove Background
+        // 3. Nút AI Remove Background (MỚI)
         if (btnAI) {
             btnAI.addEventListener('click', () => this.processAiRemove());
         }
@@ -47,9 +47,7 @@ export const Magic = {
             btn.classList.add('btn-warning');
             btn.classList.remove('btn-outline-warning');
             btn.innerHTML = '<i class="fas fa-magic"></i> Đang chọn vùng...';
-            // Đổi con trỏ chuột thành Crosshair
             if (container) container.style.cursor = 'crosshair';
-            // Tạm thời disable drag của cropper để dễ click
             Editor.disableDrag(); 
         } else {
             btn.classList.remove('btn-warning');
@@ -60,39 +58,38 @@ export const Magic = {
         }
     },
 
-    handleWandClick(e, cropperCanvasEl) {
-        // Lấy vị trí click tương đối so với ảnh
-        const rect = cropperCanvasEl.getBoundingClientRect();
-        const clickX = e.clientX - rect.left;
-        const clickY = e.clientY - rect.top;
+    handleWandClick(e) {
+        // e.target chính là thẻ <img> đang hiển thị
+        // Lấy tọa độ click tương đối trên ảnh hiển thị
+        const clickX = e.offsetX;
+        const clickY = e.offsetY;
+        
+        const displayedW = e.target.clientWidth;
+        const displayedH = e.target.clientHeight;
 
-        // Lấy ảnh hiện tại từ Editor
         const originalImage = Editor.getImageElement();
         
-        // Tạo Canvas để xử lý pixel
+        // Tính tỷ lệ scale giữa ảnh hiển thị và ảnh gốc
+        const scaleX = originalImage.naturalWidth / displayedW;
+        const scaleY = originalImage.naturalHeight / displayedH;
+
+        const trueX = Math.floor(clickX * scaleX);
+        const trueY = Math.floor(clickY * scaleY);
+
+        // Vẽ ảnh lên canvas ẩn để xử lý pixel
         const canvas = document.createElement('canvas');
         canvas.width = originalImage.naturalWidth;
         canvas.height = originalImage.naturalHeight;
         const ctx = canvas.getContext('2d');
         ctx.drawImage(originalImage, 0, 0);
 
-        // Tính tỉ lệ giữa hiển thị và ảnh thật
-        const scaleX = originalImage.naturalWidth / rect.width;
-        const scaleY = originalImage.naturalHeight / rect.height;
-
-        const trueX = Math.floor(clickX * scaleX);
-        const trueY = Math.floor(clickY * scaleY);
-
-        // Thực hiện thuật toán Flood Fill (Xóa màu lan truyền)
+        // Xóa màu
         this.floodFill(canvas, trueX, trueY, 30); // Tolerance 30
 
-        // Cập nhật lại ảnh trong Editor
+        // Cập nhật lại
         Editor.replaceImage(canvas.toDataURL('image/png'));
-        
-        // Tắt chế độ Wand sau khi xóa xong (hoặc giữ lại tùy ý, ở đây tôi giữ lại để xóa tiếp)
     },
 
-    // Thuật toán Flood Fill (Loang màu) để xóa nền
     floodFill(canvas, startX, startY, tolerance) {
         const ctx = canvas.getContext('2d');
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -100,144 +97,84 @@ export const Magic = {
         const width = canvas.width;
         const height = canvas.height;
 
-        // Lấy màu tại điểm click
         const startPos = (startY * width + startX) * 4;
         const startR = data[startPos];
         const startG = data[startPos + 1];
         const startB = data[startPos + 2];
         const startA = data[startPos + 3];
 
-        // Nếu click vào vùng đã trong suốt thì thôi
-        if (startA === 0) return;
+        if (startA === 0) return; // Đã trong suốt rồi
 
-        const pixelStack = [[startX, startY]];
-        const visited = new Uint8Array(width * height); // Đánh dấu điểm đã duyệt
+        const stack = [[startX, startY]];
+        const visited = new Uint8Array(width * height);
 
-        // Helper check màu giống nhau
-        const matchColor = (pos) => {
-            const r = data[pos];
-            const g = data[pos + 1];
-            const b = data[pos + 2];
-            const a = data[pos + 3];
-            
-            // Đã trong suốt rồi
+        const match = (pos) => {
+            const r = data[pos], g = data[pos+1], b = data[pos+2], a = data[pos+3];
             if (a === 0) return false;
-
-            return (
-                Math.abs(r - startR) <= tolerance &&
-                Math.abs(g - startG) <= tolerance &&
-                Math.abs(b - startB) <= tolerance
-            );
+            return Math.abs(r - startR) <= tolerance &&
+                   Math.abs(g - startG) <= tolerance &&
+                   Math.abs(b - startB) <= tolerance;
         };
 
-        while (pixelStack.length) {
-            const newPos = pixelStack.pop();
-            const x = newPos[0];
-            const y = newPos[1];
+        while (stack.length) {
+            const [x, y] = stack.pop();
+            const pos = (y * width + x) * 4;
+            const vPos = y * width + x;
 
-            const pixelPos = (y * width + x) * 4;
-            const visitPos = y * width + x;
-
-            if (visited[visitPos]) continue;
+            if (visited[vPos]) continue;
             
+            // Tìm lên trên
             let y1 = y;
-            while (y1 >= 0 && matchColor((y1 * width + x) * 4) && !visited[y1 * width + x]) {
-                y1--;
-            }
+            while (y1 >= 0 && match((y1 * width + x) * 4) && !visited[y1 * width + x]) y1--;
             y1++;
             
-            let spanLeft = false;
-            let spanRight = false;
+            let spanLeft = false, spanRight = false;
 
-            while (y1 < height && matchColor((y1 * width + x) * 4) && !visited[y1 * width + x]) {
-                const currentPixelPos = (y1 * width + x) * 4;
-                
-                // XÓA ĐIỂM ẢNH (Biến thành trong suốt)
-                data[currentPixelPos + 3] = 0; 
+            while (y1 < height && match((y1 * width + x) * 4) && !visited[y1 * width + x]) {
+                const currPos = (y1 * width + x) * 4;
+                data[currPos + 3] = 0; // XÓA
                 visited[y1 * width + x] = 1;
 
                 if (x > 0) {
-                    if (matchColor((y1 * width + (x - 1)) * 4) && !visited[y1 * width + (x - 1)]) {
-                        if (!spanLeft) {
-                            pixelStack.push([x - 1, y1]);
-                            spanLeft = true;
-                        }
-                    } else if (spanLeft) {
-                        spanLeft = false;
-                    }
+                    if (match((y1 * width + x - 1) * 4) && !visited[y1 * width + x - 1]) {
+                        if (!spanLeft) { stack.push([x - 1, y1]); spanLeft = true; }
+                    } else spanLeft = false;
                 }
-
                 if (x < width - 1) {
-                    if (matchColor((y1 * width + (x + 1)) * 4) && !visited[y1 * width + (x + 1)]) {
-                        if (!spanRight) {
-                            pixelStack.push([x + 1, y1]);
-                            spanRight = true;
-                        }
-                    } else if (spanRight) {
-                        spanRight = false;
-                    }
+                    if (match((y1 * width + x + 1) * 4) && !visited[y1 * width + x + 1]) {
+                        if (!spanRight) { stack.push([x + 1, y1]); spanRight = true; }
+                    } else spanRight = false;
                 }
                 y1++;
             }
         }
-
         ctx.putImageData(imageData, 0, 0);
     },
 
-    // --- AI REMOVE BACKGROUND (Dùng API remove.bg) ---
+    // --- AI REMOVE BACKGROUND (Dùng @imgly/background-removal) ---
     async processAiRemove() {
-        // Kiểm tra API Key
-        if (!this.apiKey) {
-            const key = prompt("Nhập API Key của remove.bg (Miễn phí 50 lần/tháng):\nĐăng ký tại: https://www.remove.bg/api");
-            if (key) {
-                this.apiKey = key;
-                localStorage.setItem('removeBgApiKey', key);
-            } else {
-                return;
-            }
-        }
-
         const btn = document.getElementById('btnAiRemove');
         const originalText = btn.innerHTML;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang AI xử lý...';
+        
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang tải Model AI (lần đầu hơi lâu)...';
         btn.disabled = true;
 
         try {
-            // Lấy ảnh từ editor
-            const canvas = Editor.getCanvas();
-            if (!canvas) throw new Error("Chưa có ảnh!");
+            // Lấy ảnh gốc
+            const imgElement = Editor.getImageElement();
+            if (!imgElement.src) throw new Error("Chưa có ảnh!");
 
-            // Convert canvas sang Blob
-            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-
-            const formData = new FormData();
-            formData.append('image_file', blob);
-            formData.append('size', 'auto');
-
-            // Gọi API
-            const response = await fetch('https://api.remove.bg/v1.0/removebg', {
-                method: 'POST',
-                headers: { 'X-Api-Key': this.apiKey },
-                body: formData
-            });
-
-            if (!response.ok) {
-                if (response.status === 403 || response.status === 401) {
-                    localStorage.removeItem('removeBgApiKey');
-                    throw new Error("API Key không đúng hoặc hết lượt dùng. Vui lòng thử lại.");
-                }
-                throw new Error("Lỗi kết nối đến Server AI: " + response.statusText);
-            }
-
-            const resultBlob = await response.blob();
-            const resultUrl = URL.createObjectURL(resultBlob);
-
-            // Cập nhật lại Editor
-            Editor.replaceImage(resultUrl);
-            alert("Đã xóa nền thành công!");
+            // Gọi thư viện AI xóa nền
+            // Lần đầu chạy nó sẽ tải khoảng 20-30MB model về máy
+            const blob = await imglyRemoveBackground(imgElement.src);
+            
+            const url = URL.createObjectURL(blob);
+            Editor.replaceImage(url);
+            alert("Đã tách nền thành công! (AI Pro)");
 
         } catch (error) {
-            alert("Lỗi: " + error.message);
+            console.error(error);
+            alert("Lỗi AI: " + error.message + "\n(Hãy thử reload trang hoặc dùng trình duyệt Chrome/Edge)");
         } finally {
             btn.innerHTML = originalText;
             btn.disabled = false;

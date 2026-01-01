@@ -8,6 +8,8 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
+    
+    <script src="https://unpkg.com/coi-serviceworker/coi-serviceworker.js"></script>
 </head>
 <body class="bg-dark text-light">
 
@@ -67,10 +69,10 @@
                                 <i class="fas fa-magic"></i> Magic Wand
                             </button>
                             <button class="btn btn-outline-info btn-sm fw-bold" id="btnAiRemove">
-                                <i class="fas fa-robot"></i> AI Remove BG
+                                <i class="fas fa-robot"></i> AI Remove BG (Free)
                             </button>
                         </div>
-                        <div class="text-center mt-1"><small class="text-muted fst-italic">Magic Wand: Click vào vùng màu trên ảnh để xóa.</small></div>
+                        <div class="text-center mt-1"><small class="text-muted fst-italic">Magic Wand: Click vùng màu cần xóa. AI Remove: Tự động tách nền.</small></div>
                     </div>
 
                     <div class="col-lg-4">
@@ -78,7 +80,7 @@
                             <h5 class="text-info mb-3">Xuất File</h5>
                             <input type="text" id="outName" class="form-control form-control-sm bg-secondary text-white border-0 mb-3" placeholder="Tên file...">
                             <select id="outFormat" class="form-select form-select-sm bg-secondary text-white border-0 mb-3">
-                                <option value="image/png">PNG (Giữ nền trong suốt)</option>
+                                <option value="image/png">PNG (Trong suốt)</option>
                                 <option value="image/jpeg">JPG</option>
                                 <option value="image/webp">WEBP</option>
                             </select>
@@ -138,11 +140,9 @@
                 </div>
 
                 <div class="row" id="spriteEditorArea" style="display: none;">
-                    
                     <div class="col-lg-4 mb-3">
                         <div class="card bg-dark border-secondary p-3 shadow-sm h-100">
                             <h5 class="text-danger mb-3">1. Cấu Hình Sprite</h5>
-                            
                             <fieldset id="spriteConfigSet">
                                 <div class="alert alert-secondary py-2 mb-3 small">
                                     <strong>Gốc:</strong> <span id="spriteOriginalSize" class="text-info">...</span>
@@ -161,17 +161,11 @@
                                     <label class="small text-muted d-block">Size 1 Frame:</label>
                                     <strong class="text-warning" id="spriteFrameSize">...</strong>
                                 </div>
-                                
                                 <div class="row g-2 mb-3">
                                     <label class="small text-muted mb-0">Căn Lề (Dịch chuyển):</label>
-                                    <div class="col-6">
-                                        <input type="number" id="spriteOffsetX" class="form-control form-control-sm bg-secondary text-white border-0" value="0" placeholder="X (px)">
-                                    </div>
-                                    <div class="col-6">
-                                        <input type="number" id="spriteOffsetY" class="form-control form-control-sm bg-secondary text-white border-0" value="0" placeholder="Y (px)">
-                                    </div>
+                                    <div class="col-6"><input type="number" id="spriteOffsetX" class="form-control form-control-sm bg-secondary text-white border-0" value="0" placeholder="X (px)"></div>
+                                    <div class="col-6"><input type="number" id="spriteOffsetY" class="form-control form-control-sm bg-secondary text-white border-0" value="0" placeholder="Y (px)"></div>
                                 </div>
-
                                 <div class="mb-3">
                                     <label class="small text-muted">Tốc độ (FPS):</label>
                                     <input type="number" id="spriteFPS" class="form-control form-control-sm bg-secondary text-white border-0" value="12" min="1" max="60">
@@ -181,10 +175,7 @@
                                     <label class="form-check-label small" for="spriteLoop">Loop vô tận</label>
                                 </div>
                             </fieldset>
-
-                            <button id="btnLockSprite" class="btn btn-outline-danger w-100 fw-bold mt-auto">
-                                <i class="fas fa-lock"></i> Chốt & Tiếp Tục
-                            </button>
+                            <button id="btnLockSprite" class="btn btn-outline-danger w-100 fw-bold mt-auto"><i class="fas fa-lock"></i> Chốt & Tiếp Tục</button>
                         </div>
                     </div>
 
@@ -194,22 +185,17 @@
                             <div class="bg-checkerboard sprite-preview-box mb-3">
                                 <canvas id="framePreviewCanvas"></canvas>
                             </div>
-                            <div class="text-center small text-white-50">
-                                <em>Chỉnh Offset X/Y để nhân vật đứng giữa khung.</em>
-                            </div>
+                            <div class="text-center small text-white-50"><em>Chỉnh Offset X/Y để nhân vật đứng giữa khung.</em></div>
                         </div>
                     </div>
 
                     <div class="col-lg-4 mb-3">
                         <div class="card bg-dark border-secondary p-3 shadow-sm h-100" id="spriteExportPanel" style="opacity: 0.5; pointer-events: none;">
                             <h5 class="text-success mb-3">3. Xuất File</h5>
-                            
                             <div class="mb-3">
                                 <label class="small text-muted">Resize (Width px):</label>
                                 <input type="number" id="spriteTargetWidth" class="form-control form-control-sm bg-secondary text-white border-0" placeholder="Để trống nếu giữ nguyên">
-                                <div class="form-text text-white-50 x-small">Tự động tính chiều cao</div>
                             </div>
-
                             <div class="mb-3">
                                 <label class="small text-muted">Định dạng:</label>
                                 <select id="spriteFormat" class="form-select form-select-sm bg-secondary text-white border-0">
@@ -217,18 +203,13 @@
                                     <option value="png">PNG (Ảnh tĩnh Frame 1)</option>
                                 </select>
                             </div>
-
                             <div class="mb-4">
                                 <label class="small text-muted">Tên file:</label>
                                 <input type="text" id="spriteOutName" class="form-control form-control-sm bg-secondary text-white border-0">
                             </div>
-
-                            <button id="btnSpriteConvert" class="btn btn-success w-100 fw-bold py-2 mb-3">
-                                <i class="fas fa-download"></i> Tải Xuống
-                            </button>
+                            <button id="btnSpriteConvert" class="btn btn-success w-100 fw-bold py-2 mb-3"><i class="fas fa-download"></i> Tải Xuống</button>
                         </div>
                     </div>
-
                 </div>
             </div>
 

@@ -1,42 +1,38 @@
-// js/modules/gif-core.js
-let superGifInstance = null;
-let cropperInstance = null;
-let currentFile = null;
+let currentSprite = null;
 
-export const GifCore = {
+export const SpriteCore = {
     init() {
         this.setupEvents();
     },
 
     setupEvents() {
-        const input = document.getElementById('gifInput');
-        const btnDownload = document.getElementById('btnGifDownload');
-        const btnReset = document.getElementById('btnGifReset');
+        const input = document.getElementById('spriteInput');
+        const btnConvert = document.getElementById('btnSpriteConvert');
+        
+        const inputsToWatch = ['spriteCols', 'spriteRows'];
 
-        if(input) {
+        if (input) {
             input.addEventListener('change', (e) => {
-                if (e.target.files && e.target.files[0]) this.loadGif(e.target.files[0]);
+                if (e.target.files && e.target.files[0]) this.loadSprite(e.target.files[0]);
             });
         }
 
-        if(btnReset) {
-            btnReset.addEventListener('click', () => {
-                if (cropperInstance) cropperInstance.reset();
-            });
-        }
+        if (btnConvert) btnConvert.addEventListener('click', () => this.processSprite());
 
-        if(btnDownload) {
-            btnDownload.addEventListener('click', () => this.processAndExport());
-        }
+        // Update preview khi nhập
+        inputsToWatch.forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.addEventListener('input', () => this.updateFrameInfoAndPreview());
+        });
 
-        // Hỗ trợ Paste GIF
+        // Paste support
         document.addEventListener('paste', (e) => {
             const activeTab = document.querySelector('.nav-link.active');
-            if (activeTab && activeTab.id === 'gif-tab') {
+            if (activeTab && activeTab.id === 'sprite-tab') {
                 const items = e.clipboardData.items;
                 for (let i = 0; i < items.length; i++) {
-                    if (items[i].type === 'image/gif') {
-                        this.loadGif(items[i].getAsFile());
+                    if (items[i].type.indexOf('image') !== -1) {
+                        this.loadSprite(items[i].getAsFile());
                         break;
                     }
                 }
@@ -44,104 +40,100 @@ export const GifCore = {
         });
     },
 
-    loadGif(file) {
-        currentFile = file;
-        
-        // Update UI
-        document.getElementById('gifNameDisplay').innerText = file.name;
-        document.getElementById('gifOutName').value = file.name.replace('.gif', '') + '_edited';
-        document.getElementById('gifDropZone').style.display = 'none';
-        document.getElementById('gifEditorArea').style.display = 'flex';
+    loadSprite(file) {
+        document.getElementById('spriteDropZone').style.display = 'none';
+        document.getElementById('spriteEditorArea').style.display = 'flex';
+        document.getElementById('spriteNameDisplay').innerText = file.name;
+        document.getElementById('spriteOutName').value = file.name.split('.')[0] + '_anim';
+        document.getElementById('spriteResultArea').classList.add('d-none');
 
-        const imgElement = document.getElementById('gifImagePlaceholder');
-        
-        // Reset
-        if (cropperInstance) {
-            cropperInstance.destroy();
-            cropperInstance = null;
-        }
-        const newImg = imgElement.cloneNode(true);
-        imgElement.parentNode.replaceChild(newImg, imgElement);
-        newImg.src = URL.createObjectURL(file);
-
-        // LibGif Init
-        newImg.setAttribute('rel:animated_src', newImg.src);
-        newImg.setAttribute('rel:auto_play', '0'); 
-
-        superGifInstance = new SuperGif({ gif: newImg });
-        superGifInstance.load(() => {
-            const canvasEl = superGifInstance.get_canvas();
-            cropperInstance = new Cropper(canvasEl, {
-                viewMode: 1, autoCropArea: 1, movable: false, zoomable: false, rotatable: false, scalable: false,
-            });
-        });
+        const img = new Image();
+        img.onload = () => {
+            currentSprite = img;
+            document.getElementById('spriteOriginalSize').innerText = `${img.width} x ${img.height} px`;
+            // Default
+            document.getElementById('spriteCols').value = 4; 
+            document.getElementById('spriteRows').value = 1;
+            this.updateFrameInfoAndPreview();
+        };
+        img.src = URL.createObjectURL(file);
     },
 
-    processAndExport() {
-        if (!superGifInstance || !cropperInstance) return;
+    updateFrameInfoAndPreview() {
+        if (!currentSprite) return;
 
-        const cropData = cropperInstance.getData();
-        const quality = parseInt(document.getElementById('gifQuality').value);
-        const targetWidth = document.getElementById('gifWidth').value;
+        const cols = parseInt(document.getElementById('spriteCols').value) || 1;
+        const rows = parseInt(document.getElementById('spriteRows').value) || 1;
+
+        const frameW = Math.floor(currentSprite.width / cols);
+        const frameH = Math.floor(currentSprite.height / rows);
+
+        document.getElementById('spriteFrameSize').innerText = `${frameW} x ${frameH} px`;
+
+        const canvas = document.getElementById('framePreviewCanvas');
+        const ctx = canvas.getContext('2d');
         
-        // Khởi tạo GIF Encoder
+        canvas.width = frameW;
+        canvas.height = frameH;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        ctx.drawImage(currentSprite, 0, 0, frameW, frameH, 0, 0, frameW, frameH);
+    },
+
+    processSprite() {
+        if (!currentSprite) return;
+
+        const cols = parseInt(document.getElementById('spriteCols').value) || 1;
+        const rows = parseInt(document.getElementById('spriteRows').value) || 1;
+        const speed = parseInt(document.getElementById('spriteSpeed').value) || 100;
+        const loop = document.getElementById('spriteLoop').checked;
+
+        const frameWidth = Math.floor(currentSprite.width / cols);
+        const frameHeight = Math.floor(currentSprite.height / rows);
+
         const gif = new GIF({
             workers: 2,
-            quality: quality,
-            workerScript: './js/gif.worker.js', // Quan trọng: trỏ đúng file worker bro vừa tải
-            width: cropData.width,
-            height: cropData.height
+            quality: 10,
+            workerScript: './js/gif.worker.js',
+            width: frameWidth,
+            height: frameHeight,
+            repeat: loop ? 0 : -1,
+            transparent: 0x000000 
         });
 
-        // UI Loading
-        const loadingOverlay = document.getElementById('gifLoading');
-        const progressText = document.getElementById('gifProgressText');
-        loadingOverlay.style.setProperty('display', 'flex', 'important');
+        const btn = document.getElementById('btnSpriteConvert');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xử lý...';
+        btn.disabled = true;
 
-        const length = superGifInstance.get_length();
-        
-        const processFrame = (i) => {
-            if (i >= length) {
-                gif.on('finished', (blob) => {
-                    loadingOverlay.style.setProperty('display', 'none', 'important');
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = (document.getElementById('gifOutName').value || 'gif_edited') + '.gif';
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                });
-                gif.render();
-                return;
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                const canvas = document.createElement('canvas');
+                canvas.width = frameWidth;
+                canvas.height = frameHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(currentSprite, c * frameWidth, r * frameHeight, frameWidth, frameHeight, 0, 0, frameWidth, frameHeight);
+                gif.addFrame(canvas, { delay: speed, copy: true });
             }
+        }
 
-            progressText.innerText = `Đang xử lý Frame ${i + 1}/${length}`;
-            superGifInstance.move_to(i);
+        gif.on('finished', (blob) => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            const url = URL.createObjectURL(blob);
             
-            const sourceCanvas = superGifInstance.get_canvas();
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = cropData.width;
-            tempCanvas.height = cropData.height;
-            const ctx = tempCanvas.getContext('2d');
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = (document.getElementById('spriteOutName').value || 'sprite_anim') + '.gif';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
 
-            ctx.drawImage(sourceCanvas, cropData.x, cropData.y, cropData.width, cropData.height, 0, 0, cropData.width, cropData.height);
+            const resImg = document.getElementById('spriteResultImg');
+            resImg.src = url;
+            document.getElementById('spriteResultArea').classList.remove('d-none');
+        });
 
-            let finalCanvas = tempCanvas;
-            if (targetWidth && parseInt(targetWidth) > 0) {
-                const scaleFactor = parseInt(targetWidth) / cropData.width;
-                const resizeCanvas = document.createElement('canvas');
-                resizeCanvas.width = parseInt(targetWidth);
-                resizeCanvas.height = cropData.height * scaleFactor;
-                resizeCanvas.getContext('2d').drawImage(tempCanvas, 0, 0, resizeCanvas.width, resizeCanvas.height);
-                finalCanvas = resizeCanvas;
-            }
-
-            const currentFrameInfo = superGifInstance.get_current_frame(); 
-            gif.addFrame(finalCanvas, { delay: currentFrameInfo.delay * 10 || 100, copy: true });
-
-            setTimeout(() => processFrame(i + 1), 0);
-        };
-        processFrame(0);
+        gif.render();
     }
 };

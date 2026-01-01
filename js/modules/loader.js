@@ -1,4 +1,3 @@
-// js/modules/loader.js
 import { UI } from './ui.js';
 
 export const Loader = {
@@ -22,11 +21,10 @@ export const Loader = {
 
     setupPasteEvent() {
         document.addEventListener('paste', (e) => {
-            // FIX: Nếu đang ở Tab GIF (id="gif-tab") thì Loader (Ảnh tĩnh) ko được chạy
+            // FIX: Nếu không ở tab Ảnh thì return
             const activeTab = document.querySelector('.nav-link.active');
             if (activeTab && activeTab.id !== 'photo-tab') return; 
-            // ---------------------------------------
-
+            
             const items = e.clipboardData.items;
             for (let i = 0; i < items.length; i++) {
                 if (items[i].type.indexOf('image') !== -1) {
@@ -43,9 +41,7 @@ export const Loader = {
         UI.updateFileInfo(file.name);
         const reader = new FileReader();
         reader.onload = (e) => {
-            if (this.onImageLoaded) {
-                this.onImageLoaded(e.target.result);
-            }
+            if (this.onImageLoaded) this.onImageLoaded(e.target.result);
         };
         reader.readAsDataURL(file);
     }

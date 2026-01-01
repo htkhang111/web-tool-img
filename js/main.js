@@ -1,15 +1,14 @@
-// js/main.js
 import { UI } from './modules/ui.js';
 import { Loader } from './modules/loader.js';
 import { Editor } from './modules/editor.js';
 import { Exporter } from './modules/exporter.js';
 import { GifCore } from './modules/gif-core.js';
-import { SpriteCore } from './modules/sprite-core.js'; // <-- MỚI
+import { SpriteCore } from './modules/sprite-core.js'; 
 
-// Init Phase 1 (Ảnh tĩnh)
+// Init Phase 1
 Loader.init((imageSource) => Editor.loadImage(imageSource));
 
-// Events cũ
+// Events UI
 const el = (id) => document.getElementById(id);
 if(el('btnRotateLeft')) el('btnRotateLeft').onclick = () => Editor.rotate(-90);
 if(el('btnRotateRight')) el('btnRotateRight').onclick = () => Editor.rotate(90);
@@ -27,4 +26,4 @@ if(el('btnDownload')) el('btnDownload').onclick = () => {
 
 // Init Phase 2 & 3
 GifCore.init();
-SpriteCore.init(); // <-- MỚI
+SpriteCore.init();

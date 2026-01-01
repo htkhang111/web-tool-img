@@ -1,6 +1,4 @@
 // js/modules/gif-core.js
-// Module xử lý cắt/nén file GIF động
-
 let superGifInstance = null;
 let cropperInstance = null;
 let currentFile = null;
@@ -57,25 +55,20 @@ export const GifCore = {
 
         const imgElement = document.getElementById('gifImagePlaceholder');
         
-        // Reset
         if (cropperInstance) {
             cropperInstance.destroy();
             cropperInstance = null;
         }
-        // Hack: Tái tạo element img để libgif không bị lỗi cache
         const newImg = imgElement.cloneNode(true);
         imgElement.parentNode.replaceChild(newImg, imgElement);
         newImg.src = URL.createObjectURL(file);
 
-        // LibGif Init
         newImg.setAttribute('rel:animated_src', newImg.src);
         newImg.setAttribute('rel:auto_play', '0'); 
 
-        // Khởi tạo SuperGif để phân tích frames
         superGifInstance = new SuperGif({ gif: newImg });
         superGifInstance.load(() => {
             const canvasEl = superGifInstance.get_canvas();
-            // Gắn Cropper vào canvas của GIF
             cropperInstance = new Cropper(canvasEl, {
                 viewMode: 1, autoCropArea: 1, movable: false, zoomable: false, rotatable: false, scalable: false,
             });
@@ -86,11 +79,9 @@ export const GifCore = {
         if (!superGifInstance || !cropperInstance) return;
 
         const cropData = cropperInstance.getData();
-        const quality = parseInt(document.getElementById('gifQuality').value) || 10;
-        const targetWidthInput = document.getElementById('gifWidth').value;
-        const targetWidth = targetWidthInput ? parseInt(targetWidthInput) : 0;
+        const quality = parseInt(document.getElementById('gifQuality').value);
+        const targetWidth = parseInt(document.getElementById('gifWidth').value) || 0;
         
-        // Khởi tạo GIF Encoder
         const gif = new GIF({
             workers: 2,
             quality: quality,
@@ -99,7 +90,6 @@ export const GifCore = {
             height: targetWidth > 0 ? (cropData.height * (targetWidth / cropData.width)) : cropData.height
         });
 
-        // UI Loading
         const loadingOverlay = document.getElementById('gifLoading');
         const progressText = document.getElementById('gifProgressText');
         loadingOverlay.style.setProperty('display', 'flex', 'important');
@@ -108,7 +98,6 @@ export const GifCore = {
         
         const processFrame = (i) => {
             if (i >= length) {
-                // Render xong
                 gif.on('finished', (blob) => {
                     loadingOverlay.style.setProperty('display', 'none', 'important');
                     const url = URL.createObjectURL(blob);
@@ -127,29 +116,24 @@ export const GifCore = {
             superGifInstance.move_to(i);
             
             const sourceCanvas = superGifInstance.get_canvas();
-            
-            // 1. Cắt ảnh (Crop)
             const tempCanvas = document.createElement('canvas');
             tempCanvas.width = cropData.width;
             tempCanvas.height = cropData.height;
             const ctx = tempCanvas.getContext('2d');
+
             ctx.drawImage(sourceCanvas, cropData.x, cropData.y, cropData.width, cropData.height, 0, 0, cropData.width, cropData.height);
 
-            // 2. Resize (Nếu có)
             let finalCanvas = tempCanvas;
             if (targetWidth > 0) {
                 const scaleFactor = targetWidth / cropData.width;
-                const newHeight = cropData.height * scaleFactor;
-                
                 const resizeCanvas = document.createElement('canvas');
                 resizeCanvas.width = targetWidth;
-                resizeCanvas.height = newHeight;
+                resizeCanvas.height = cropData.height * scaleFactor;
                 resizeCanvas.getContext('2d').drawImage(tempCanvas, 0, 0, resizeCanvas.width, resizeCanvas.height);
                 finalCanvas = resizeCanvas;
             }
 
             const currentFrameInfo = superGifInstance.get_current_frame(); 
-            // delay * 10 vì libgif dùng đơn vị 1/100s
             gif.addFrame(finalCanvas, { delay: currentFrameInfo.delay * 10 || 100, copy: true });
 
             setTimeout(() => processFrame(i + 1), 0);

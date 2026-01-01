@@ -1,5 +1,8 @@
 // js/modules/sprite-core.js
+// Module xử lý Sprite Sheet -> GIF (Có Drag & Drop + Live Animation Preview)
+
 let currentSprite = null;
+let previewInterval = null; // Biến lưu vòng lặp animation
 
 export const SpriteCore = {
     init() {
@@ -9,20 +12,20 @@ export const SpriteCore = {
     setupEvents() {
         const input = document.getElementById('spriteInput');
         const btnConvert = document.getElementById('btnSpriteConvert');
-        const dropZone = document.getElementById('spriteDropZone'); // Lấy cái vùng thả ảnh
+        const dropZone = document.getElementById('spriteDropZone');
         
-        const inputsToWatch = ['spriteCols', 'spriteRows'];
+        // Theo dõi các ô input để cập nhật animation ngay lập tức
+        const inputsToWatch = ['spriteCols', 'spriteRows', 'spriteFPS'];
 
-        // 1. Nút chọn file
+        // 1. Input chọn file
         if (input) {
             input.addEventListener('change', (e) => {
                 if (e.target.files && e.target.files[0]) this.loadSprite(e.target.files[0]);
             });
         }
 
-        // 2. XỬ LÝ KÉO & THẢ (DRAG & DROP) - ĐOẠN QUAN TRỌNG
+        // 2. Kéo & Thả (Drag & Drop)
         if (dropZone) {
-            // Chặn trình duyệt mở file (Fix lỗi chuyển trang)
             ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
                 dropZone.addEventListener(eventName, (e) => {
                     e.preventDefault();
@@ -30,41 +33,26 @@ export const SpriteCore = {
                 }, false);
             });
 
-            // Hiệu ứng khi kéo vào
-            dropZone.addEventListener('dragover', () => {
-                dropZone.classList.add('bg-dark', 'border-white');
-            });
+            dropZone.addEventListener('dragover', () => dropZone.classList.add('bg-dark', 'border-white'));
+            dropZone.addEventListener('dragleave', () => dropZone.classList.remove('bg-dark', 'border-white'));
 
-            // Hiệu ứng khi kéo ra
-            dropZone.addEventListener('dragleave', () => {
-                dropZone.classList.remove('bg-dark', 'border-white');
-            });
-
-            // Khi thả file
             dropZone.addEventListener('drop', (e) => {
                 dropZone.classList.remove('bg-dark', 'border-white');
                 const dt = e.dataTransfer;
-                const files = dt.files;
-                if (files && files[0]) {
-                    this.loadSprite(files[0]); // Gọi hàm load ảnh
-                }
+                if (dt.files && dt.files[0]) this.loadSprite(dt.files[0]);
             });
         }
 
-        // 3. Nút Convert
-        if (btnConvert) {
-            btnConvert.addEventListener('click', () => this.processSprite());
-        }
+        // 3. Nút Render
+        if (btnConvert) btnConvert.addEventListener('click', () => this.processSprite());
 
-        // 4. Update preview khi nhập số
+        // 4. Sự kiện thay đổi thông số -> Chạy lại Animation Preview
         inputsToWatch.forEach(id => {
             const el = document.getElementById(id);
-            if(el) {
-                el.addEventListener('input', () => this.updateFrameInfoAndPreview());
-            }
+            if(el) el.addEventListener('input', () => this.startPreviewAnimation());
         });
 
-        // 5. Hỗ trợ Paste
+        // 5. Paste Support
         document.addEventListener('paste', (e) => {
             const activeTab = document.querySelector('.nav-link.active');
             if (activeTab && activeTab.id === 'sprite-tab') {
@@ -80,7 +68,6 @@ export const SpriteCore = {
     },
 
     loadSprite(file) {
-        // Reset UI
         document.getElementById('spriteDropZone').style.display = 'none';
         document.getElementById('spriteEditorArea').style.display = 'flex';
         document.getElementById('spriteNameDisplay').innerText = file.name;
@@ -92,34 +79,73 @@ export const SpriteCore = {
             currentSprite = img;
             document.getElementById('spriteOriginalSize').innerText = `${img.width} x ${img.height} px`;
             
-            // Mặc định
+            // Reset giá trị mặc định
             document.getElementById('spriteCols').value = 4; 
             document.getElementById('spriteRows').value = 1;
+            document.getElementById('spriteFPS').value = 12; // Mặc định 12 FPS cho mượt
             
-            this.updateFrameInfoAndPreview();
+            // Bắt đầu chạy Animation Preview
+            this.startPreviewAnimation();
         };
         img.src = URL.createObjectURL(file);
     },
 
-    updateFrameInfoAndPreview() {
+    // --- HÀM TẠO HIỆU ỨNG CHUYỂN ĐỘNG (PREVIEW) ---
+    startPreviewAnimation() {
         if (!currentSprite) return;
+        
+        // Xóa vòng lặp cũ để tránh bị chồng chéo
+        if (previewInterval) clearInterval(previewInterval);
 
         const cols = parseInt(document.getElementById('spriteCols').value) || 1;
         const rows = parseInt(document.getElementById('spriteRows').value) || 1;
+        const fps = parseInt(document.getElementById('spriteFPS').value) || 12;
+        
+        // Tính thời gian nghỉ giữa các frame (ms)
+        const delay = 1000 / fps;
 
+        // Kích thước 1 frame
         const frameW = Math.floor(currentSprite.width / cols);
         const frameH = Math.floor(currentSprite.height / rows);
 
+        // Update Text
         document.getElementById('spriteFrameSize').innerText = `${frameW} x ${frameH} px`;
 
+        // Setup Canvas
         const canvas = document.getElementById('framePreviewCanvas');
         const ctx = canvas.getContext('2d');
-        
         canvas.width = frameW;
         canvas.height = frameH;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        ctx.drawImage(currentSprite, 0, 0, frameW, frameH, 0, 0, frameW, frameH);
+        let currentFrameIndex = 0;
+        const totalFrames = cols * rows;
+
+        // Hàm vẽ frame hiện tại
+        const draw = () => {
+            // Tính toán tọa độ X, Y của frame trong ảnh gốc
+            const c = currentFrameIndex % cols; // Cột hiện tại
+            const r = Math.floor(currentFrameIndex / cols); // Hàng hiện tại
+
+            // Xóa canvas
+            ctx.clearRect(0, 0, frameW, frameH);
+            
+            // Vẽ phần ảnh cắt được lên canvas
+            ctx.drawImage(
+                currentSprite, 
+                c * frameW, r * frameH,  // Tọa độ cắt (Source X, Y)
+                frameW, frameH,          // Kích thước cắt (Source W, H)
+                0, 0, frameW, frameH     // Vẽ lên Canvas (Dest X, Y, W, H)
+            );
+
+            // Tăng index cho lần sau (vòng lại về 0 nếu hết)
+            currentFrameIndex = (currentFrameIndex + 1) % totalFrames;
+        };
+        
+        // Vẽ ngay lập tức frame đầu tiên
+        draw(); 
+
+        // Thiết lập vòng lặp chạy liên tục
+        previewInterval = setInterval(draw, delay);
     },
 
     processSprite() {
@@ -127,8 +153,10 @@ export const SpriteCore = {
 
         const cols = parseInt(document.getElementById('spriteCols').value) || 1;
         const rows = parseInt(document.getElementById('spriteRows').value) || 1;
-        const speed = parseInt(document.getElementById('spriteSpeed').value) || 100;
+        const fps = parseInt(document.getElementById('spriteFPS').value) || 12;
         const loop = document.getElementById('spriteLoop').checked;
+
+        const delay = 1000 / fps; 
 
         const frameWidth = Math.floor(currentSprite.width / cols);
         const frameHeight = Math.floor(currentSprite.height / rows);
@@ -155,7 +183,7 @@ export const SpriteCore = {
                 canvas.height = frameHeight;
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(currentSprite, c * frameWidth, r * frameHeight, frameWidth, frameHeight, 0, 0, frameWidth, frameHeight);
-                gif.addFrame(canvas, { delay: speed, copy: true });
+                gif.addFrame(canvas, { delay: delay, copy: true });
             }
         }
 

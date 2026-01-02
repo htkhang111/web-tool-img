@@ -1,104 +1,138 @@
 // js/modules/core/auth.js
 export const Auth = {
     currentUser: null,
-
+    
+    // --- KHỞI TẠO & SESSION ---
     init() {
-        this.loadSession();
-        // Không render UI ở đây nữa vì đã tách trang
+        // Load session từ LocalStorage (để F5 không bị mất login)
+        const savedUser = localStorage.getItem('studio_user_session');
+        if (savedUser) {
+            try {
+                this.currentUser = JSON.parse(savedUser);
+            } catch (e) {
+                console.error("Lỗi đọc session cũ", e);
+                this.logout();
+            }
+        }
     },
 
     isLoggedIn() {
         return !!this.currentUser;
     },
 
-    // --- Chức năng Bảo vệ (Dùng cho index.html) ---
     requireLogin() {
-        this.loadSession();
+        this.init();
         if (!this.currentUser) {
-            window.location.href = 'login.html'; // Đá về Login nếu chưa đăng nhập
+            // Chưa đăng nhập -> Đá về trang login
+            window.location.href = 'login.html';
         } else {
-            this.renderUserInfo(); // Nếu đã login thì hiện info
+            // Đã đăng nhập -> Hiển thị thông tin
+            this.renderUserInfo();
         }
     },
 
-    // --- User Logic ---
-    register(username) {
-        const db = this.getDB();
-        if (db[username]) return alert("Tài khoản đã tồn tại!");
+    // --- GỌI API BACKEND ---
+
+    async register(username, password) {
+        const btn = document.getElementById('btnRegister');
+        const msg = document.getElementById('msg');
         
-        db[username] = { keys: [] };
-        this.saveDB(db);
-        this.login(username); // Đăng nhập luôn sau khi đăng ký
+        try {
+            if(btn) { btn.disabled = true; btn.innerText = "Đang xử lý..."; }
+            if(msg) msg.innerText = "";
+
+            const res = await fetch('/api/auth/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) throw new Error(data.error || "Lỗi không xác định");
+            
+            alert(data.message); // "Đăng ký thành công"
+            // Reload để user nhập lại login cho chắc (hoặc tự login luôn tùy bạn)
+            window.location.reload();
+            
+        } catch (err) {
+            if(msg) msg.innerText = err.message;
+            else alert(err.message);
+        } finally {
+            if(btn) { btn.disabled = false; btn.innerText = "Đăng Ký"; }
+        }
     },
 
-    login(username) {
-        const db = this.getDB();
-        if (!db[username]) return alert("Tài khoản không tồn tại! Hãy tạo mới.");
-        
-        localStorage.setItem('studio_current_user', username);
-        this.currentUser = username;
-        
-        // Chuyển hướng vào Studio
-        window.location.href = 'index.html';
+    async login(username, password) {
+        const btn = document.getElementById('btnLogin');
+        const msg = document.getElementById('msg');
+
+        try {
+            if(btn) { btn.disabled = true; btn.innerText = "Đang vào..."; }
+            if(msg) msg.innerText = "";
+
+            const res = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) throw new Error(data.error || "Sai tài khoản/mật khẩu");
+
+            // Đăng nhập thành công -> Lưu session
+            this.currentUser = data;
+            localStorage.setItem('studio_user_session', JSON.stringify(data));
+
+            // Chuyển vào Studio
+            window.location.href = 'index.html';
+
+        } catch (err) {
+            if(msg) msg.innerText = err.message;
+            else alert(err.message);
+        } finally {
+            if(btn) { btn.disabled = false; btn.innerText = "Đăng Nhập"; }
+        }
     },
 
     logout() {
-        if(confirm('Đăng xuất khỏi Studio?')) {
-            localStorage.removeItem('studio_current_user');
+        if(confirm('Bạn muốn đăng xuất?')) {
+            localStorage.removeItem('studio_user_session');
             this.currentUser = null;
-            window.location.href = 'login.html'; // Đá về Login
+            window.location.href = 'login.html';
         }
     },
 
-    // --- Key Logic (Giữ nguyên) ---
-    addKey(provider, key, name) {
-        const db = this.getDB();
-        const user = db[this.currentUser];
-        user.keys.push({ id: Date.now(), provider, key: key.trim(), name: name || provider, active: true });
-        
-        // Auto activate last key
-        user.keys.forEach(k => {
-            if(k.id !== user.keys[user.keys.length-1].id && k.provider === provider) k.active = false;
-        });
-
-        this.saveDB(db);
-        this.renderKeyList();
-        alert("Đã lưu Key!");
-    },
-
-    removeKey(id) {
-        const db = this.getDB();
-        const user = db[this.currentUser];
-        user.keys = user.keys.filter(k => k.id !== id);
-        this.saveDB(db);
-        this.renderKeyList();
-    },
-
+    // --- XỬ LÝ KEYS (Tạm thời chỉ hiển thị, chưa có API Add/Remove) ---
+    
     getActiveKey(provider) {
-        if (!this.currentUser) return null;
-        const user = this.getDB()[this.currentUser];
-        if(!user) return null;
-        const keyObj = user.keys.find(k => k.provider === provider && k.active) || user.keys.find(k => k.provider === provider);
+        if (!this.currentUser || !this.currentUser.keys) return null;
+        // Tìm key active của provider đó
+        const keyObj = this.currentUser.keys.find(k => k.provider === provider && k.active) 
+                    || this.currentUser.keys.find(k => k.provider === provider);
         return keyObj ? keyObj.key : null;
     },
 
-    // --- Helpers & UI ---
-    getDB() { return JSON.parse(localStorage.getItem('studio_users') || '{}'); },
-    saveDB(db) { localStorage.setItem('studio_users', JSON.stringify(db)); },
-    
-    loadSession() { 
-        const user = localStorage.getItem('studio_current_user');
-        if (user && this.getDB()[user]) this.currentUser = user;
-        else this.currentUser = null;
+    addKey(provider, key, name) {
+        // TODO: Cần viết thêm API /api/user/add-key để lưu vào DB thật
+        alert("Tính năng lưu Key vào Database đang được bảo trì! Vui lòng chờ update sau.");
+        console.log("Mock Add Key:", provider, key, name);
     },
 
+    removeKey(id) {
+        // TODO: Cần viết thêm API /api/user/remove-key
+        alert("Tính năng xóa Key đang được bảo trì!");
+    },
+
+    // --- GIAO DIỆN (UI) ---
+
     renderUserInfo() {
-        // Chỉ chạy ở trang index.html
         const display = document.getElementById('usernameDisplay');
         if (display && this.currentUser) {
-            display.innerText = this.currentUser;
+            display.innerText = this.currentUser.username;
         }
-        this.renderKeyList(); // Load danh sách key vào Modal
+        this.renderKeyList();
     },
 
     renderKeyList() {
@@ -106,9 +140,11 @@ export const Auth = {
         if (!container || !this.currentUser) return;
         
         container.innerHTML = '';
-        const keys = this.getDB()[this.currentUser].keys || [];
+        const keys = this.currentUser.keys || [];
         
-        if(keys.length === 0) return container.innerHTML = '<div class="text-muted text-center small py-2">Chưa có Key nào.</div>';
+        if(keys.length === 0) {
+            return container.innerHTML = '<div class="text-muted text-center small py-2">Chưa có Key nào.</div>';
+        }
 
         keys.forEach(k => {
             const div = document.createElement('div');
@@ -116,15 +152,16 @@ export const Auth = {
             div.innerHTML = `
                 <div class="text-truncate" style="max-width: 80%">
                     <span class="badge ${k.provider === 'photoroom' ? 'bg-primary' : 'bg-warning text-dark'} me-1">${k.provider}</span>
-                    <span class="small fw-bold text-light">${k.name}</span>
+                    <span class="small fw-bold text-light">${k.name || 'Key'}</span>
                 </div>
-                <button class="btn btn-sm btn-outline-danger del-key" style="padding: 0 5px;" data-id="${k.id}">&times;</button>
+                <button class="btn btn-sm btn-outline-danger del-key" style="padding: 0 5px;" data-id="${k.id || ''}">&times;</button>
             `;
             container.appendChild(div);
         });
 
+        // Gán sự kiện xóa (dù chưa chạy backend nhưng để UI không chết)
         container.querySelectorAll('.del-key').forEach(b => {
-            b.onclick = (e) => this.removeKey(parseInt(e.currentTarget.dataset.id));
+            b.onclick = (e) => this.removeKey(e.currentTarget.dataset.id);
         });
     }
 };

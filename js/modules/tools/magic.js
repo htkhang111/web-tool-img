@@ -12,7 +12,7 @@ export const Magic = {
     async processAiRemove() {
         const activeObj = FabricEditor.getActiveObject();
         if (!activeObj || activeObj.type !== 'image') {
-            alert("Vui lòng chọn một tấm ảnh trên Workspace để tách nền!");
+            alert("⚠️ Vui lòng click chọn vào tấm ảnh trên Workspace trước!");
             return;
         }
 
@@ -20,26 +20,45 @@ export const Magic = {
         const originalText = btn.innerHTML;
         
         // Hiệu ứng loading
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang tải AI & Tách nền...';
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang tải AI...';
         btn.disabled = true;
 
         try {
-            // FIX: Dùng Dynamic Import để tránh treo web nếu mạng chậm hoặc CDN lỗi lúc khởi động
-            const { default: imglyRemoveBackground } = await import("https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.3.0/+esm");
+            console.log("Magic: Đang tải thư viện AI từ CDN...");
+            
+            // FIX: Đổi sang esm.sh để ổn định hơn và tránh bị chặn CORS/Network
+            // Dùng bản mới nhất @1.5.5
+            const module = await import("https://esm.sh/@imgly/background-removal@1.5.5");
+            
+            // Một số CDN trả về default, một số trả về trực tiếp hàm
+            const imglyRemoveBackground = module.default || module;
 
+            btn.innerHTML = '<i class="fas fa-magic fa-spin"></i> Đang tách nền...';
+            
             // Lấy source gốc của ảnh đang chọn
             const imgSrc = activeObj.getSrc();
+            console.log("Magic: Bắt đầu xử lý ảnh...", imgSrc);
+
+            // Cấu hình AI tải model về (đảm bảo public path đúng nếu cần)
+            const config = {
+                progress: (key, current, total) => {
+                    const percent = Math.round((current / total) * 100);
+                    btn.innerHTML = `<i class="fas fa-cog fa-spin"></i> ${percent}%`;
+                }
+            };
             
             // Gọi AI
-            const blob = await imglyRemoveBackground(imgSrc);
+            const blob = await imglyRemoveBackground(imgSrc, config);
             const url = URL.createObjectURL(blob);
             
+            console.log("Magic: Tách nền thành công!", url);
+
             // Thay thế ảnh cũ bằng ảnh mới đã tách
             FabricEditor.replaceActiveImage(url);
             
         } catch (error) {
-            console.error(error);
-            alert("Lỗi khi tải thư viện AI hoặc xử lý ảnh: " + error.message);
+            console.error("Magic Error:", error);
+            alert(`❌ Lỗi AI: Không thể tải thư viện hoặc xử lý ảnh.\n\nChi tiết: ${error.message}\n\n(Hãy kiểm tra kết nối mạng hoặc thử tắt AdBlock)`);
         } finally {
             btn.innerHTML = originalText;
             btn.disabled = false;

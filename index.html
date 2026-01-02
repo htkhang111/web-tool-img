@@ -3,81 +3,72 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tool Đa Năng: Ảnh & GIF - Ghét Hải Sản</title>
+    <title>Studio Đa Năng - Ghét Hải Sản</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
     
     <script src="./coi-serviceworker.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 </head>
 <body class="bg-dark text-light">
 
     <div class="container py-4">
         <div class="d-flex justify-content-between align-items-center mb-4 border-bottom border-secondary pb-3">
-            <h3 class="text-info m-0"><i class="fas fa-layer-group"></i> Editor Pro</h3>
+            <h3 class="text-info m-0"><i class="fas fa-layer-group"></i> Studio Pro</h3>
             <div class="text-muted small">Dev: Trương Khuynh Hàn</div>
         </div>
 
         <ul class="nav nav-pills mb-4 justify-content-center" id="toolTabs">
-            <li class="nav-item">
-                <button class="nav-link active px-3" id="photo-tab" data-bs-toggle="pill" data-bs-target="#photo-panel">
-                    <i class="fas fa-image me-2"></i>Cắt Ảnh
-                </button>
-            </li>
-            <li class="nav-item">
-                <button class="nav-link px-3" id="gif-tab" data-bs-toggle="pill" data-bs-target="#gif-panel">
-                    <i class="fas fa-film me-2"></i>Edit GIF
-                </button>
-            </li>
-            <li class="nav-item">
-                <button class="nav-link px-3" id="sprite-tab" data-bs-toggle="pill" data-bs-target="#sprite-panel">
-                    <i class="fas fa-ghost me-2"></i>Sprite to GIF
-                </button>
-            </li>
+            <li class="nav-item"><button class="nav-link active px-3" id="photo-tab" data-bs-toggle="pill" data-bs-target="#photo-panel"><i class="fas fa-magic me-2"></i>Studio Ảnh</button></li>
+            <li class="nav-item"><button class="nav-link px-3" id="batch-tab" data-bs-toggle="pill" data-bs-target="#batch-panel"><i class="fas fa-images me-2"></i>Đổi Tên/Đuôi Hàng Loạt</button></li>
+            <li class="nav-item"><button class="nav-link px-3" id="gif-tab" data-bs-toggle="pill" data-bs-target="#gif-panel"><i class="fas fa-film me-2"></i>Edit GIF</button></li>
+            <li class="nav-item"><button class="nav-link px-3" id="sprite-tab" data-bs-toggle="pill" data-bs-target="#sprite-panel"><i class="fas fa-ghost me-2"></i>Sprite to GIF</button></li>
         </ul>
 
         <div class="tab-content">
             
             <div class="tab-pane fade show active" id="photo-panel">
-                <div class="card bg-secondary text-white mb-4 shadow-sm dashed-border">
-                    <div class="card-body text-center py-5" id="dropZone">
+                <div class="card bg-secondary text-white mb-4 shadow-sm dashed-border" id="dropZone">
+                    <div class="card-body text-center py-5">
                         <i class="fas fa-cloud-upload-alt fa-3x mb-3 text-info"></i>
-                        <h5>Kéo thả, Paste (Ctrl+V) hoặc Chọn ảnh</h5>
-                        <p class="small text-white-50">Hỗ trợ: PNG, JPG, WEBP, BMP</p>
-                        <label for="imageInput" class="btn btn-info fw-bold mt-2">📂 Chọn Ảnh</label>
+                        <h5>Kéo thả hoặc Chọn ảnh để bắt đầu</h5>
+                        <label for="imageInput" class="btn btn-info fw-bold mt-2">📂 Thêm Ảnh Vào Studio</label>
                         <input type="file" id="imageInput" accept="image/*" hidden>
-                        <div class="mt-3 small text-warning fw-bold" id="fileNameDisplay"></div>
                     </div>
                 </div>
 
                 <div class="row" id="editorArea" style="display: none;">
-                    <div class="col-lg-8 mb-3">
-                        <div class="img-container border border-secondary shadow-lg bg-checkerboard">
-                            <img id="image" src="" alt="Picture">
+                    <div class="col-lg-9 mb-3">
+                        <div class="workspace-container bg-checkerboard border border-secondary shadow-lg d-flex justify-content-center align-items-center" style="min-height: 600px; overflow: hidden;">
+                            <canvas id="fabricCanvas"></canvas>
                         </div>
                         
-                        <div class="mt-3 d-flex gap-2 justify-content-center border-bottom border-secondary pb-3 mb-3">
-                            <button class="btn btn-outline-light btn-sm" id="btnRotateLeft" title="Xoay Trái"><i class="fas fa-undo"></i></button>
-                            <button class="btn btn-outline-light btn-sm" id="btnRotateRight" title="Xoay Phải"><i class="fas fa-redo"></i></button>
-                            <button class="btn btn-outline-light btn-sm" id="btnFlipH" title="Lật Ngang"><i class="fas fa-arrows-alt-h"></i></button>
-                            <button class="btn btn-outline-danger btn-sm ms-3" id="btnReset"><i class="fas fa-sync"></i> Reset</button>
-                        </div>
-
-                        <div class="d-flex gap-2 justify-content-center">
-                            <button class="btn btn-outline-warning btn-sm fw-bold" id="btnMagicWand">
-                                <i class="fas fa-magic"></i> Magic Wand
-                            </button>
+                        <div class="mt-3 d-flex gap-2 justify-content-center bg-dark p-2 rounded border border-secondary flex-wrap">
+                            <button class="btn btn-outline-light btn-sm" onclick="document.getElementById('addImageBtn').click()"><i class="fas fa-plus"></i> Thêm Ảnh</button>
+                            <input type="file" id="addImageBtn" hidden accept="image/*">
+                            
+                            <div class="vr bg-secondary mx-2"></div>
+                            
+                            <button class="btn btn-outline-light btn-sm" id="btnBringFront" title="Lên trên"><i class="fas fa-arrow-up"></i></button>
+                            <button class="btn btn-outline-light btn-sm" id="btnSendBack" title="Xuống dưới"><i class="fas fa-arrow-down"></i></button>
+                            <button class="btn btn-outline-danger btn-sm" id="btnDeleteObj" title="Xóa chọn"><i class="fas fa-trash"></i></button>
+                            
+                            <div class="vr bg-secondary mx-2"></div>
+                            
                             <button class="btn btn-outline-info btn-sm fw-bold" id="btnAiRemove">
-                                <i class="fas fa-robot"></i> AI Remove BG (Free)
+                                <i class="fas fa-robot"></i> AI Tách Nền (Chọn ảnh trước)
                             </button>
+                            <button class="btn btn-outline-danger btn-sm ms-auto" id="btnClearAll"><i class="fas fa-bomb"></i> Xóa Hết</button>
                         </div>
-                        <div class="text-center mt-1"><small class="text-muted fst-italic">Magic Wand: Click vùng màu cần xóa. AI Remove: Tự động tách nền (Đợi 10s tải model).</small></div>
                     </div>
 
-                    <div class="col-lg-4">
+                    <div class="col-lg-3">
                         <div class="card bg-dark border-secondary p-3 shadow-sm">
-                            <h5 class="text-info mb-3">Xuất File</h5>
+                            <h5 class="text-info mb-3">Xuất Studio</h5>
                             <input type="text" id="outName" class="form-control form-control-sm bg-secondary text-white border-0 mb-3" placeholder="Tên file...">
                             <select id="outFormat" class="form-select form-select-sm bg-secondary text-white border-0 mb-3">
                                 <option value="image/png">PNG (Trong suốt)</option>
@@ -89,6 +80,55 @@
                                 <input type="range" class="form-range" id="qualityRange" min="0.1" max="1.0" step="0.1" value="0.8">
                             </div>
                             <button id="btnDownload" class="btn btn-success w-100 fw-bold mt-2">Tải Xuống</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="batch-panel">
+                <div class="card bg-secondary text-white mb-4 shadow-sm dashed-border" id="batchDropZone">
+                    <div class="card-body text-center py-5">
+                        <i class="fas fa-images fa-3x mb-3 text-success"></i>
+                        <h5>Xử lý hàng loạt (Batch Processing)</h5>
+                        <p class="small text-white-50">Chọn nhiều ảnh cùng lúc để đổi tên & đổi đuôi</p>
+                        <label for="batchInput" class="btn btn-success fw-bold mt-2">📂 Chọn Nhiều Ảnh</label>
+                        <input type="file" id="batchInput" accept="image/*" multiple hidden>
+                    </div>
+                </div>
+                
+                <div id="batchOptions" style="display: none;">
+                    <div class="alert alert-dark border-secondary d-flex justify-content-between align-items-center">
+                        <span>Đã chọn: <strong id="batchCount" class="text-warning">0</strong> file</span>
+                        <button class="btn btn-sm btn-outline-light" id="btnBatchClear">Chọn lại</button>
+                    </div>
+
+                    <div class="card bg-dark border-secondary p-4">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="small text-muted">Mẫu tên mới (Dùng {n} để đánh số):</label>
+                                <input type="text" id="batchNamePattern" class="form-control bg-secondary text-white border-0" placeholder="Ví dụ: Asset_Game_{n}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="small text-muted">Đổi đuôi sang:</label>
+                                <select id="batchFormat" class="form-select bg-secondary text-white border-0">
+                                    <option value="original">Giữ nguyên gốc</option>
+                                    <option value="image/png">PNG</option>
+                                    <option value="image/jpeg">JPG</option>
+                                    <option value="image/webp">WEBP</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="small text-muted">Bắt đầu từ số:</label>
+                                <input type="number" id="batchStartNum" class="form-control bg-secondary text-white border-0" value="1">
+                            </div>
+                            <div class="col-md-3 d-flex align-items-end">
+                                <button id="btnBatchProcess" class="btn btn-warning w-100 fw-bold">
+                                    <i class="fas fa-cogs"></i> Xử Lý & Tải ZIP
+                                </button>
+                            </div>
+                        </div>
+                        <div id="batchProgress" class="progress mt-3" style="height: 5px; display: none;">
+                            <div class="progress-bar bg-warning" role="progressbar" style="width: 0%"></div>
                         </div>
                     </div>
                 </div>
@@ -138,7 +178,6 @@
                         <div class="mt-3 small fw-bold" id="spriteNameDisplay"></div>
                     </div>
                 </div>
-
                 <div class="row" id="spriteEditorArea" style="display: none;">
                     <div class="col-lg-4 mb-3">
                         <div class="card bg-dark border-secondary p-3 shadow-sm h-100">
@@ -178,7 +217,6 @@
                             <button id="btnLockSprite" class="btn btn-outline-danger w-100 fw-bold mt-auto"><i class="fas fa-lock"></i> Chốt & Tiếp Tục</button>
                         </div>
                     </div>
-
                     <div class="col-lg-4 mb-3">
                         <div class="card bg-dark border-secondary p-3 shadow-sm h-100">
                             <h5 class="text-warning mb-3">2. Xem Trước</h5>
@@ -188,7 +226,6 @@
                             <div class="text-center small text-white-50"><em>Chỉnh Offset X/Y để nhân vật đứng giữa khung.</em></div>
                         </div>
                     </div>
-
                     <div class="col-lg-4 mb-3">
                         <div class="card bg-dark border-secondary p-3 shadow-sm h-100" id="spriteExportPanel" style="opacity: 0.5; pointer-events: none;">
                             <h5 class="text-success mb-3">3. Xuất File</h5>

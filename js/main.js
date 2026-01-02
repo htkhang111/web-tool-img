@@ -1,43 +1,39 @@
 // js/main.js
-import { UI } from './modules/ui.js';
-import { Loader } from './modules/loader.js';
-import { Editor } from './modules/editor.js';
-import { Exporter } from './modules/exporter.js';
-import { GifCore } from './modules/gif-core.js';
-import { SpriteCore } from './modules/sprite-core.js'; 
-import { Magic } from './modules/magic.js';
+import { UI } from './modules/core/ui.js';
+import { Loader } from './modules/core/loader.js';
+import { FabricEditor } from './modules/editors/fabric-editor.js'; // New Studio
+import { Exporter } from './modules/core/exporter.js';
+import { GifCore } from './modules/editors/gif-core.js';
+import { SpriteCore } from './modules/editors/sprite-core.js';
+import { Magic } from './modules/tools/magic.js';
+import { BatchTool } from './modules/tools/batch.js'; // New Tool
 
-// --- KHIÊN CHẮN: Chặn trình duyệt tự mở file khi kéo trượt ra ngoài ---
-// Fix: Thêm dragenter để chặn triệt để hơn trên một số trình duyệt
+// --- KHIÊN CHẮN ---
 ['dragenter', 'dragover', 'drop'].forEach(eventName => {
-    window.addEventListener(eventName, (e) => {
-        // Chỉ preventDefault ở window level để không reload trang
-        // Các vùng dropZone cụ thể sẽ handle việc stopPropagation
-        e.preventDefault();
-    }, false);
+    window.addEventListener(eventName, (e) => { e.preventDefault(); }, false);
 });
-// ---------------------------------------------------------------------
 
-// Init Phase 1
-Loader.init((imageSource) => Editor.loadImage(imageSource));
-
-// Events UI
-const el = (id) => document.getElementById(id);
-if(el('btnRotateLeft')) el('btnRotateLeft').onclick = () => Editor.rotate(-90);
-if(el('btnRotateRight')) el('btnRotateRight').onclick = () => Editor.rotate(90);
-if(el('btnFlipH')) el('btnFlipH').onclick = () => Editor.flipHorizontal();
-if(el('btnReset')) el('btnReset').onclick = () => Editor.reset();
-if(el('qualityRange')) el('qualityRange').oninput = (e) => UI.updateQualityDisplay(e.target.value);
-
-if(el('btnDownload')) el('btnDownload').onclick = () => {
-    const canvas = Editor.getCanvas();
-    const name = el('outName').value;
-    const format = el('outFormat').value;
-    const quality = el('qualityRange').value;
-    Exporter.download(canvas, name, format, quality);
-};
-
-// Init Modules
+// Init
+Loader.init();
+FabricEditor.init();
 GifCore.init();
 SpriteCore.init();
 Magic.init();
+BatchTool.init();
+
+// Events Download Studio
+const btnDownload = document.getElementById('btnDownload');
+if (btnDownload) {
+    btnDownload.onclick = () => {
+        const name = document.getElementById('outName').value;
+        const format = document.getElementById('outFormat').value;
+        const quality = document.getElementById('qualityRange').value;
+        
+        // Lấy data từ Fabric
+        const dataURL = FabricEditor.exportImage(format, quality);
+        Exporter.downloadBase64(dataURL, name, format);
+    };
+}
+
+// Update Quality display
+document.getElementById('qualityRange').oninput = (e) => UI.updateQualityDisplay(e.target.value);

@@ -1,5 +1,5 @@
 // js/modules/magic.js
-import { Editor } from './editor.js';
+import { Editor } from '../editor.js';
 // Import thư viện AI xịn xò (chạy trực tiếp trên browser)
 import imglyRemoveBackground from "https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.3.0/+esm";
 

@@ -1,45 +1,133 @@
-// js/modules/tools/magic.js
-import { FabricEditor } from '../editors/fabric-editor.js';
-import imglyRemoveBackground from "https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.3.0/+esm";
+// js/modules/editor/fabric-editor.js
+export const FabricEditor = {
+    canvas: null,
 
-export const Magic = {
     init() {
-        const btnAI = document.getElementById('btnAiRemove');
-        if (btnAI) {
-            btnAI.addEventListener('click', () => this.processAiRemove());
+        // Khởi tạo Fabric Canvas
+        // Kích thước mặc định 800x600, sẽ tự resize khi ảnh đầu tiên vào
+        this.canvas = new fabric.Canvas('fabricCanvas', {
+            width: 800,
+            height: 600,
+            backgroundColor: null, // Transparent
+            preserveObjectStacking: true // Giữ thứ tự layer khi chọn
+        });
+
+        this.setupEvents();
+    },
+
+    setupEvents() {
+        // Xóa đối tượng (Phím Delete)
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Delete' && this.canvas.getActiveObject()) {
+                this.deleteActive();
+            }
+        });
+
+        // Nút Toolbar
+        const btnDelete = document.getElementById('btnDeleteObj');
+        const btnFront = document.getElementById('btnBringFront');
+        const btnBack = document.getElementById('btnSendBack');
+        const btnClear = document.getElementById('btnClearAll');
+
+        if(btnDelete) btnDelete.onclick = () => this.deleteActive();
+        if(btnFront) btnFront.onclick = () => {
+            const obj = this.canvas.getActiveObject();
+            if(obj) { obj.bringToFront(); this.canvas.discardActiveObject(); this.canvas.renderAll(); }
+        };
+        if(btnBack) btnBack.onclick = () => {
+            const obj = this.canvas.getActiveObject();
+            if(obj) { obj.sendToBack(); this.canvas.discardActiveObject(); this.canvas.renderAll(); }
+        };
+        if(btnClear) btnClear.onclick = () => {
+            if(confirm('Xóa trắng toàn bộ Workspace?')) this.canvas.clear();
+        };
+    },
+
+    addImage(url, isAppend = false) {
+        fabric.Image.fromURL(url, (img) => {
+            // Nếu là ảnh đầu tiên (chưa có gì), resize canvas theo ảnh
+            if (!isAppend || this.canvas.getObjects().length === 0) {
+                // Giới hạn max width hiển thị để không vỡ layout
+                const maxWidth = 1000;
+                let scale = 1;
+                if (img.width > maxWidth) {
+                    scale = maxWidth / img.width;
+                }
+
+                this.canvas.setWidth(img.width * scale);
+                this.canvas.setHeight(img.height * scale);
+                this.canvas.setBackgroundImage(null); // Xóa bg cũ
+                
+                // Scale ảnh khớp canvas
+                img.scale(scale);
+            } else {
+                // Ảnh thêm vào sau thì scale nhỏ lại cho dễ nhìn (1/3 canvas)
+                img.scaleToWidth(this.canvas.getWidth() / 3);
+            }
+
+            img.set({
+                cornerColor: '#0dcaf0', // Màu xanh dương cyan đẹp
+                cornerStyle: 'circle',
+                borderColor: '#0dcaf0',
+                transparentCorners: false
+            });
+
+            this.canvas.add(img);
+            this.canvas.setActiveObject(img);
+            this.canvas.renderAll();
+        });
+    },
+
+    deleteActive() {
+        const active = this.canvas.getActiveObject();
+        if (active) {
+            this.canvas.remove(active);
+            this.canvas.discardActiveObject();
+            this.canvas.renderAll();
         }
     },
 
-    async processAiRemove() {
-        const activeObj = FabricEditor.getActiveObject();
-        if (!activeObj || activeObj.type !== 'image') {
-            alert("Vui lòng chọn một tấm ảnh trên Workspace để tách nền!");
-            return;
-        }
+    getActiveObject() {
+        return this.canvas.getActiveObject();
+    },
 
-        const btn = document.getElementById('btnAiRemove');
-        const originalText = btn.innerHTML;
-        
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang tách nền...';
-        btn.disabled = true;
+    // Thay thế ảnh của Object đang chọn (Dùng cho AI Remove BG)
+    replaceActiveImage(newUrl) {
+        const activeObj = this.canvas.getActiveObject();
+        if (!activeObj || activeObj.type !== 'image') return;
 
-        try {
-            // Lấy source gốc của ảnh đang chọn
-            const imgSrc = activeObj.getSrc();
-            
-            // Gọi AI
-            const blob = await imglyRemoveBackground(imgSrc);
-            const url = URL.createObjectURL(blob);
-            
-            // Thay thế ảnh cũ bằng ảnh mới đã tách
-            FabricEditor.replaceActiveImage(url);
-            
-        } catch (error) {
-            console.error(error);
-            alert("Lỗi AI: " + error.message);
-        } finally {
-            btn.innerHTML = originalText;
-            btn.disabled = false;
-        }
+        const oldLeft = activeObj.left;
+        const oldTop = activeObj.top;
+        const oldScaleX = activeObj.scaleX;
+        const oldScaleY = activeObj.scaleY;
+        const oldAngle = activeObj.angle;
+
+        fabric.Image.fromURL(newUrl, (newImg) => {
+            newImg.set({
+                left: oldLeft,
+                top: oldTop,
+                scaleX: oldScaleX,
+                scaleY: oldScaleY,
+                angle: oldAngle,
+                cornerColor: '#0dcaf0',
+                cornerStyle: 'circle',
+                borderColor: '#0dcaf0',
+                transparentCorners: false
+            });
+
+            this.canvas.remove(activeObj);
+            this.canvas.add(newImg);
+            this.canvas.setActiveObject(newImg);
+            this.canvas.renderAll();
+        });
+    },
+
+    exportImage(format, quality) {
+        // format: 'image/png'
+        return this.canvas.toDataURL({
+            format: format === 'image/jpeg' ? 'jpeg' : 'png',
+            quality: parseFloat(quality),
+            multiplier: 1 // Tăng lên nếu muốn xuất ảnh phân giải cao hơn canvas
+        });
     }
 };

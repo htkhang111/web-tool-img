@@ -1,12 +1,12 @@
 // js/main.js
 import { UI } from './modules/core/ui.js';
 import { Loader } from './modules/core/loader.js';
-import { FabricEditor } from './modules/editors/fabric-editor.js'; // New Studio
+import { FabricEditor } from './modules/editor/fabric-editor.js'; // Sửa path
 import { Exporter } from './modules/core/exporter.js';
-import { GifCore } from './modules/editors/gif-core.js';
-import { SpriteCore } from './modules/editors/sprite-core.js';
+import { GifCore } from './modules/editor/gif-core.js'; // Sửa path
+import { SpriteCore } from './modules/editor/sprite-core.js'; // Sửa path
 import { Magic } from './modules/tools/magic.js';
-import { BatchTool } from './modules/tools/batch.js'; // New Tool
+import { BatchTool } from './modules/tools/batch.js'; 
 
 // --- KHIÊN CHẮN ---
 ['dragenter', 'dragover', 'drop'].forEach(eventName => {

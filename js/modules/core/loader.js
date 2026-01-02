@@ -1,6 +1,6 @@
 // js/modules/core/loader.js
 import { UI } from './ui.js';
-import { FabricEditor } from '../editors/fabric-editor.js';
+import { FabricEditor } from '../editor/fabric-editor.js';
 
 export const Loader = {
     init() {

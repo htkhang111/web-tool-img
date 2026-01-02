@@ -1,74 +1,79 @@
-// js/main.js
-import { UI } from './modules/core/ui.js';
-import { Loader } from './modules/core/loader.js';
-import { FabricEditor } from './modules/editor/fabric-editor.js'; 
-import { Exporter } from './modules/core/exporter.js';
-import { GifCore } from './modules/editor/gif-core.js'; 
-import { SpriteCore } from './modules/editor/sprite-core.js'; 
-import { Magic } from './modules/tools/magic.js';
-import { BatchTool } from './modules/tools/batch.js'; 
-import { Auth } from './modules/core/auth.js'; // Import module mới
+// js/modules/tools/magic.js
+import { FabricEditor } from '../editor/fabric-editor.js';
+import { Auth } from '../core/auth.js';
 
-// --- KHIÊN CHẮN ---
-['dragenter', 'dragover', 'drop'].forEach(eventName => {
-    window.addEventListener(eventName, (e) => { e.preventDefault(); }, false);
-});
+export const Magic = {
+    init() {
+        const btn = document.getElementById('btnAiRemove');
+        if(btn) btn.onclick = () => this.process();
+    },
 
-// Init
-Loader.init();
-FabricEditor.init();
-GifCore.init();
-SpriteCore.init();
-Magic.init();
-BatchTool.init();
-Auth.init(); // Khởi chạy Auth
+    async process() {
+        const activeObj = FabricEditor.getActiveObject();
+        if (!activeObj || activeObj.type !== 'image') return alert("⚠️ Hãy chọn một tấm ảnh trước!");
 
-// Expose Auth ra window để nút HTML gọi được (onclick="window.Auth.logout()")
-window.Auth = Auth;
+        // Lấy Key: Ưu tiên HuggingFace (Free), nếu không có thì PhotoRoom
+        let userKey = Auth.getActiveKey('huggingface');
+        let provider = 'huggingface';
 
-// --- AUTH EVENTS ---
-const btnLogin = document.getElementById('btnLogin');
-if (btnLogin) {
-    btnLogin.addEventListener('click', () => {
-        const user = document.getElementById('authUsername').value.trim();
-        Auth.login(user);
-    });
-}
+        if (!userKey) {
+            userKey = Auth.getActiveKey('photoroom');
+            if(userKey) provider = 'photoroom';
+        }
 
-const btnRegister = document.getElementById('btnRegister');
-if (btnRegister) {
-    btnRegister.addEventListener('click', () => {
-        const user = document.getElementById('authUsername').value.trim();
-        Auth.register(user);
-    });
-}
+        const btn = document.getElementById('btnAiRemove');
+        const oldText = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xử lý...';
+        btn.disabled = true;
 
-const btnSaveKey = document.getElementById('btnSaveKey');
-if (btnSaveKey) {
-    btnSaveKey.addEventListener('click', () => {
-        const provider = document.getElementById('keyProvider').value;
-        const name = document.getElementById('keyName').value.trim();
-        const key = document.getElementById('keyValue').value.trim();
-        
-        if(!key) return alert("Chưa nhập Key mà lưu gì bro?");
-        
-        Auth.addKey(provider, key, name);
-        
-        // Reset form
-        document.getElementById('keyName').value = '';
-        document.getElementById('keyValue').value = '';
-    });
-}
+        try {
+            // Chuẩn bị file
+            const blob = await this.toBlob(activeObj.getSrc());
 
-// Events Download Studio (Giữ nguyên)
-const btnDownload = document.getElementById('btnDownload');
-if (btnDownload) {
-    btnDownload.onclick = () => {
-        const name = document.getElementById('outName').value;
-        const format = document.getElementById('outFormat').value;
-        const quality = document.getElementById('qualityRange').value;
-        const dataURL = FabricEditor.exportImage(format, quality);
-        Exporter.downloadBase64(dataURL, name, format);
-    };
-}
-document.getElementById('qualityRange').oninput = (e) => UI.updateQualityDisplay(e.target.value);
+            // Chuẩn bị Header
+            const headers = {};
+            if (userKey) {
+                headers['x-user-api-key'] = userKey;
+                headers['x-provider'] = provider;
+            }
+
+            console.log(`Magic: Sending request (${userKey ? 'User Key' : 'Server Key'})...`);
+
+            // Gọi Backend
+            const res = await fetch('/api/remove-bg', {
+                method: 'POST',
+                headers: headers,
+                body: blob
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || `Server Error ${res.status}`);
+            }
+
+            // Nhận kết quả
+            const resBlob = await res.blob();
+            const url = URL.createObjectURL(resBlob);
+            FabricEditor.replaceActiveImage(url);
+
+        } catch (e) {
+            console.error(e);
+            alert(`❌ Lỗi: ${e.message}`);
+        } finally {
+            btn.innerHTML = oldText;
+            btn.disabled = false;
+        }
+    },
+
+    async toBlob(src) {
+        if (src.startsWith('data:')) {
+            const arr = src.split(','), mime = arr[0].match(/:(.*?);/)[1];
+            const bstr = atob(arr[1]);
+            let n = bstr.length; 
+            const u8arr = new Uint8Array(n);
+            while(n--) u8arr[n] = bstr.charCodeAt(n);
+            return new Blob([u8arr], {type:mime});
+        }
+        return await (await fetch(src)).blob();
+    }
+};

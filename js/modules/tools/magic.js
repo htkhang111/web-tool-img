@@ -34,7 +34,8 @@ export const Magic = {
             const imglyRemoveBackground = module.removeBackground || module.default;
 
             if (typeof imglyRemoveBackground !== 'function') {
-                throw new Error("Không tìm thấy hàm xử lý trong thư viện đã tải!");
+                console.error("Module Exports:", module); // Log ra để debug nếu cần
+                throw new Error("Không tìm thấy hàm 'removeBackground' trong thư viện đã tải!");
             }
 
             btn.innerHTML = '<i class="fas fa-magic fa-spin"></i> Đang tách nền...';

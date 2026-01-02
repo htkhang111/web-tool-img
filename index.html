@@ -1,262 +1,78 @@
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Studio Đa Năng - Ghét Hải Sản</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css">
+<div class="d-flex justify-content-between align-items-center mb-4 border-bottom border-secondary pb-3">
+    <div>
+        <h3 class="text-info m-0"><i class="fas fa-layer-group"></i> Studio Pro</h3>
+        <div class="text-muted small">Dev: Trương Khuynh Hàn</div>
+    </div>
     
-    <script src="./coi-serviceworker.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-</head>
-<body class="bg-dark text-light">
-
-    <div class="container py-4">
-        <div class="d-flex justify-content-between align-items-center mb-4 border-bottom border-secondary pb-3">
-            <h3 class="text-info m-0"><i class="fas fa-layer-group"></i> Studio Pro</h3>
-            <div class="text-muted small">Dev: Trương Khuynh Hàn</div>
+    <div>
+        <div id="authBtnArea">
+            <button class="btn btn-outline-info btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#authModal">
+                <i class="fas fa-user-astronaut"></i> Đăng Nhập
+            </button>
         </div>
-
-        <ul class="nav nav-pills mb-4 justify-content-center" id="toolTabs">
-            <li class="nav-item"><button class="nav-link active px-3" id="photo-tab" data-bs-toggle="pill" data-bs-target="#photo-panel"><i class="fas fa-magic me-2"></i>Studio Ảnh</button></li>
-            <li class="nav-item"><button class="nav-link px-3" id="batch-tab" data-bs-toggle="pill" data-bs-target="#batch-panel"><i class="fas fa-images me-2"></i>Đổi Tên/Đuôi Hàng Loạt</button></li>
-            <li class="nav-item"><button class="nav-link px-3" id="gif-tab" data-bs-toggle="pill" data-bs-target="#gif-panel"><i class="fas fa-film me-2"></i>Edit GIF</button></li>
-            <li class="nav-item"><button class="nav-link px-3" id="sprite-tab" data-bs-toggle="pill" data-bs-target="#sprite-panel"><i class="fas fa-ghost me-2"></i>Sprite to GIF</button></li>
-        </ul>
-
-        <div class="tab-content">
-            
-            <div class="tab-pane fade show active" id="photo-panel">
-                <div class="card bg-secondary text-white mb-4 shadow-sm dashed-border" id="dropZone">
-                    <div class="card-body text-center py-5">
-                        <i class="fas fa-cloud-upload-alt fa-3x mb-3 text-info"></i>
-                        <h5>Kéo thả hoặc Chọn ảnh để bắt đầu</h5>
-                        <label for="imageInput" class="btn btn-info fw-bold mt-2">📂 Thêm Ảnh Vào Studio</label>
-                        <input type="file" id="imageInput" accept="image/*" hidden>
-                    </div>
-                </div>
-
-                <div class="row" id="editorArea" style="display: none;">
-                    <div class="col-lg-9 mb-3">
-                        <div class="workspace-container bg-checkerboard border border-secondary shadow-lg d-flex justify-content-center align-items-center" style="min-height: 600px; overflow: hidden;">
-                            <canvas id="fabricCanvas"></canvas>
-                        </div>
-                        
-                        <div class="mt-3 d-flex gap-2 justify-content-center bg-dark p-2 rounded border border-secondary flex-wrap">
-                            <button class="btn btn-outline-light btn-sm" onclick="document.getElementById('addImageBtn').click()"><i class="fas fa-plus"></i> Thêm Ảnh</button>
-                            <input type="file" id="addImageBtn" hidden accept="image/*">
-                            
-                            <div class="vr bg-secondary mx-2"></div>
-                            
-                            <button class="btn btn-outline-light btn-sm" id="btnBringFront" title="Lên trên"><i class="fas fa-arrow-up"></i></button>
-                            <button class="btn btn-outline-light btn-sm" id="btnSendBack" title="Xuống dưới"><i class="fas fa-arrow-down"></i></button>
-                            <button class="btn btn-outline-danger btn-sm" id="btnDeleteObj" title="Xóa chọn"><i class="fas fa-trash"></i></button>
-                            
-                            <div class="vr bg-secondary mx-2"></div>
-                            
-                            <button class="btn btn-outline-info btn-sm fw-bold" id="btnAiRemove">
-                                <i class="fas fa-robot"></i> AI Tách Nền (Chọn ảnh trước)
-                            </button>
-                            <button class="btn btn-outline-danger btn-sm ms-auto" id="btnClearAll"><i class="fas fa-bomb"></i> Xóa Hết</button>
-                        </div>
-                    </div>
-
-                    <div class="col-lg-3">
-                        <div class="card bg-dark border-secondary p-3 shadow-sm">
-                            <h5 class="text-info mb-3">Xuất Studio</h5>
-                            <input type="text" id="outName" class="form-control form-control-sm bg-secondary text-white border-0 mb-3" placeholder="Tên file...">
-                            <select id="outFormat" class="form-select form-select-sm bg-secondary text-white border-0 mb-3">
-                                <option value="image/png">PNG (Trong suốt)</option>
-                                <option value="image/jpeg">JPG</option>
-                                <option value="image/webp">WEBP</option>
-                            </select>
-                            <div class="mb-3">
-                                <label class="small text-muted">Quality: <span id="qualityDisplay">80%</span></label>
-                                <input type="range" class="form-range" id="qualityRange" min="0.1" max="1.0" step="0.1" value="0.8">
-                            </div>
-                            <button id="btnDownload" class="btn btn-success w-100 fw-bold mt-2">Tải Xuống</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="tab-pane fade" id="batch-panel">
-                <div class="card bg-secondary text-white mb-4 shadow-sm dashed-border" id="batchDropZone">
-                    <div class="card-body text-center py-5">
-                        <i class="fas fa-images fa-3x mb-3 text-success"></i>
-                        <h5>Xử lý hàng loạt (Batch Processing)</h5>
-                        <p class="small text-white-50">Chọn nhiều ảnh cùng lúc để đổi tên & đổi đuôi</p>
-                        <label for="batchInput" class="btn btn-success fw-bold mt-2">📂 Chọn Nhiều Ảnh</label>
-                        <input type="file" id="batchInput" accept="image/*" multiple hidden>
-                    </div>
-                </div>
-                
-                <div id="batchOptions" style="display: none;">
-                    <div class="alert alert-dark border-secondary d-flex justify-content-between align-items-center">
-                        <span>Đã chọn: <strong id="batchCount" class="text-warning">0</strong> file</span>
-                        <button class="btn btn-sm btn-outline-light" id="btnBatchClear">Chọn lại</button>
-                    </div>
-
-                    <div class="card bg-dark border-secondary p-4">
-                        <div class="row g-3">
-                            <div class="col-md-4">
-                                <label class="small text-muted">Mẫu tên mới (Dùng {n} để đánh số):</label>
-                                <input type="text" id="batchNamePattern" class="form-control bg-secondary text-white border-0" placeholder="Ví dụ: Asset_Game_{n}">
-                            </div>
-                            <div class="col-md-3">
-                                <label class="small text-muted">Đổi đuôi sang:</label>
-                                <select id="batchFormat" class="form-select bg-secondary text-white border-0">
-                                    <option value="original">Giữ nguyên gốc</option>
-                                    <option value="image/png">PNG</option>
-                                    <option value="image/jpeg">JPG</option>
-                                    <option value="image/webp">WEBP</option>
-                                </select>
-                            </div>
-                            <div class="col-md-2">
-                                <label class="small text-muted">Bắt đầu từ số:</label>
-                                <input type="number" id="batchStartNum" class="form-control bg-secondary text-white border-0" value="1">
-                            </div>
-                            <div class="col-md-3 d-flex align-items-end">
-                                <button id="btnBatchProcess" class="btn btn-warning w-100 fw-bold">
-                                    <i class="fas fa-cogs"></i> Xử Lý & Tải ZIP
-                                </button>
-                            </div>
-                        </div>
-                        <div id="batchProgress" class="progress mt-3" style="height: 5px; display: none;">
-                            <div class="progress-bar bg-warning" role="progressbar" style="width: 0%"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="tab-pane fade" id="gif-panel">
-                <div class="card bg-secondary text-white mb-4 shadow-sm dashed-border" id="gifDropZone">
-                    <div class="card-body text-center py-5">
-                        <i class="fas fa-film fa-3x mb-3 text-warning"></i>
-                        <h5>Chỉnh sửa file GIF động</h5>
-                        <label for="gifInput" class="btn btn-warning fw-bold mt-2">📂 Chọn GIF</label>
-                        <input type="file" id="gifInput" accept="image/gif" hidden>
-                        <div class="mt-3 small fw-bold" id="gifNameDisplay"></div>
-                    </div>
-                </div>
-                <div class="row" id="gifEditorArea" style="display: none;">
-                    <div class="col-lg-8 mb-3">
-                        <div class="img-container border border-secondary shadow-lg bg-black position-relative">
-                            <img id="gifImagePlaceholder" src="" style="max-width: 100%; display: block;">
-                            <div id="gifLoading" class="position-absolute top-0 start-0 w-100 h-100 bg-dark bg-opacity-75 d-flex align-items-center justify-content-center flex-column" style="display: none !important; z-index: 10;">
-                                <div class="spinner-border text-warning" role="status"></div>
-                                <div class="mt-2 text-white" id="gifProgressText">Đang xử lý...</div>
-                            </div>
-                        </div>
-                        <div class="mt-3 text-center"><button class="btn btn-outline-warning btn-sm" id="btnGifReset">Reset Khung</button></div>
-                    </div>
-                    <div class="col-lg-4">
-                        <div class="card bg-dark border-secondary p-3 shadow-sm">
-                            <h5 class="text-warning mb-3">Cấu Hình GIF</h5>
-                            <input type="text" id="gifOutName" class="form-control form-control-sm bg-secondary text-white border-0 mb-3" placeholder="Tên file...">
-                            <input type="number" id="gifWidth" placeholder="Resize (px)" class="form-control form-control-sm bg-secondary text-white border-0 mb-3">
-                            <label class="small text-muted">Quality:</label>
-                            <input type="range" class="form-range" id="gifQuality" min="1" max="20" step="1" value="10">
-                            <button id="btnGifDownload" class="btn btn-warning w-100 fw-bold mt-3">Render & Tải</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="tab-pane fade" id="sprite-panel">
-                <div class="card bg-secondary text-white mb-4 shadow-sm dashed-border" id="spriteDropZone">
-                    <div class="card-body text-center py-5">
-                        <i class="fas fa-ghost fa-3x mb-3 text-danger"></i>
-                        <h5>Chuyển Sprite Sheet thành GIF</h5>
-                        <label for="spriteInput" class="btn btn-danger fw-bold mt-2">📂 Chọn Sprite Sheet</label>
-                        <input type="file" id="spriteInput" accept="image/*" hidden>
-                        <div class="mt-3 small fw-bold" id="spriteNameDisplay"></div>
-                    </div>
-                </div>
-                <div class="row" id="spriteEditorArea" style="display: none;">
-                    <div class="col-lg-4 mb-3">
-                        <div class="card bg-dark border-secondary p-3 shadow-sm h-100">
-                            <h5 class="text-danger mb-3">1. Cấu Hình Sprite</h5>
-                            <fieldset id="spriteConfigSet">
-                                <div class="alert alert-secondary py-2 mb-3 small">
-                                    <strong>Gốc:</strong> <span id="spriteOriginalSize" class="text-info">...</span>
-                                </div>
-                                <div class="row g-2 mb-3">
-                                    <div class="col-6">
-                                        <label class="small text-muted">Số Cột:</label>
-                                        <input type="number" id="spriteCols" class="form-control form-control-sm bg-secondary text-white border-0" value="4" min="1">
-                                    </div>
-                                    <div class="col-6">
-                                        <label class="small text-muted">Số Hàng:</label>
-                                        <input type="number" id="spriteRows" class="form-control form-control-sm bg-secondary text-white border-0" value="1" min="1">
-                                    </div>
-                                </div>
-                                <div class="mb-3 p-2 border border-secondary rounded bg-black bg-opacity-25">
-                                    <label class="small text-muted d-block">Size 1 Frame:</label>
-                                    <strong class="text-warning" id="spriteFrameSize">...</strong>
-                                </div>
-                                <div class="row g-2 mb-3">
-                                    <label class="small text-muted mb-0">Căn Lề (Dịch chuyển):</label>
-                                    <div class="col-6"><input type="number" id="spriteOffsetX" class="form-control form-control-sm bg-secondary text-white border-0" value="0" placeholder="X (px)"></div>
-                                    <div class="col-6"><input type="number" id="spriteOffsetY" class="form-control form-control-sm bg-secondary text-white border-0" value="0" placeholder="Y (px)"></div>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="small text-muted">Tốc độ (FPS):</label>
-                                    <input type="number" id="spriteFPS" class="form-control form-control-sm bg-secondary text-white border-0" value="12" min="1" max="60">
-                                </div>
-                                <div class="form-check mb-3">
-                                    <input class="form-check-input" type="checkbox" id="spriteLoop" checked>
-                                    <label class="form-check-label small" for="spriteLoop">Loop vô tận</label>
-                                </div>
-                            </fieldset>
-                            <button id="btnLockSprite" class="btn btn-outline-danger w-100 fw-bold mt-auto"><i class="fas fa-lock"></i> Chốt & Tiếp Tục</button>
-                        </div>
-                    </div>
-                    <div class="col-lg-4 mb-3">
-                        <div class="card bg-dark border-secondary p-3 shadow-sm h-100">
-                            <h5 class="text-warning mb-3">2. Xem Trước</h5>
-                            <div class="bg-checkerboard sprite-preview-box mb-3">
-                                <canvas id="framePreviewCanvas"></canvas>
-                            </div>
-                            <div class="text-center small text-white-50"><em>Chỉnh Offset X/Y để nhân vật đứng giữa khung.</em></div>
-                        </div>
-                    </div>
-                    <div class="col-lg-4 mb-3">
-                        <div class="card bg-dark border-secondary p-3 shadow-sm h-100" id="spriteExportPanel" style="opacity: 0.5; pointer-events: none;">
-                            <h5 class="text-success mb-3">3. Xuất File</h5>
-                            <div class="mb-3">
-                                <label class="small text-muted">Resize (Width px):</label>
-                                <input type="number" id="spriteTargetWidth" class="form-control form-control-sm bg-secondary text-white border-0" placeholder="Để trống nếu giữ nguyên">
-                            </div>
-                            <div class="mb-3">
-                                <label class="small text-muted">Định dạng:</label>
-                                <select id="spriteFormat" class="form-select form-select-sm bg-secondary text-white border-0">
-                                    <option value="gif">GIF (Ảnh động)</option>
-                                    <option value="png">PNG (Ảnh tĩnh Frame 1)</option>
-                                </select>
-                            </div>
-                            <div class="mb-4">
-                                <label class="small text-muted">Tên file:</label>
-                                <input type="text" id="spriteOutName" class="form-control form-control-sm bg-secondary text-white border-0">
-                            </div>
-                            <button id="btnSpriteConvert" class="btn btn-success w-100 fw-bold py-2 mb-3"><i class="fas fa-download"></i> Tải Xuống</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
+        <div id="userProfileArea" style="display: none; align-items: center; gap: 8px;">
+            <span class="text-warning fw-bold small" id="usernameDisplay">User</span>
+            <div class="vr bg-secondary"></div>
+            <button class="btn btn-dark btn-sm border-secondary" data-bs-toggle="modal" data-bs-target="#keysModal" title="Quản lý API Key">
+                <i class="fas fa-key text-success"></i>
+            </button>
+            <button class="btn btn-outline-danger btn-sm" onclick="window.Auth.logout()" title="Đăng xuất">
+                <i class="fas fa-power-off"></i>
+            </button>
         </div>
     </div>
+    </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/buzzfeed/libgif-js@master/libgif.js"></script>
-    <script src="./js/gif.js"></script>
-    <script type="module" src="./js/main.js"></script>
-</body>
-</html>
+<div class="modal fade" id="authModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content bg-dark text-white border-info shadow-lg">
+            <div class="modal-header border-secondary py-2">
+                <h6 class="modal-title text-info"><i class="fas fa-user-shield"></i> Xác Thực</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="small text-muted">Tên tài khoản (Tự tạo nếu chưa có):</label>
+                    <input type="text" id="authUsername" class="form-control bg-secondary text-white border-0 text-center fw-bold" placeholder="Nhập tên...">
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-info w-50 fw-bold" id="btnLogin">Vào Ngay</button>
+                    <button class="btn btn-outline-light w-50" id="btnRegister">Đăng Ký</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="keysModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content bg-dark text-white border-secondary shadow-lg">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title"><i class="fas fa-key text-warning"></i> Kho API Key</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="bg-black bg-opacity-25 p-3 rounded border border-secondary mb-4">
+                    <h6 class="text-info mb-3 small text-uppercase fw-bold">Thêm Key Mới</h6>
+                    <div class="mb-2">
+                        <select id="keyProvider" class="form-select form-select-sm bg-dark text-white border-secondary">
+                            <option value="huggingface">Hugging Face (Free Token)</option>
+                            <option value="photoroom">PhotoRoom (Pro/Paid)</option>
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <input type="text" id="keyName" class="form-control form-control-sm bg-dark text-white border-secondary" placeholder="Tên gợi nhớ (VD: Key Nhà, Key Cty...)">
+                    </div>
+                    <div class="mb-3">
+                        <input type="text" id="keyValue" class="form-control form-control-sm bg-dark text-white border-secondary font-monospace" placeholder="Paste API Key vào đây...">
+                    </div>
+                    <button class="btn btn-success btn-sm w-100 fw-bold" id="btnSaveKey"><i class="fas fa-save"></i> Lưu & Kích Hoạt</button>
+                </div>
+
+                <h6 class="text-muted border-bottom border-secondary pb-2 mb-3 small text-uppercase">Danh Sách Key Của Bạn</h6>
+                <div id="keyListContainer" style="max-height: 250px; overflow-y: auto;">
+                    </div>
+            </div>
+        </div>
+    </div>
+</div>

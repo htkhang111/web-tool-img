@@ -1,81 +1,74 @@
-// js/modules/tools/magic.js
-import { FabricEditor } from '../editor/fabric-editor.js';
+// js/main.js
+import { UI } from './modules/core/ui.js';
+import { Loader } from './modules/core/loader.js';
+import { FabricEditor } from './modules/editor/fabric-editor.js'; 
+import { Exporter } from './modules/core/exporter.js';
+import { GifCore } from './modules/editor/gif-core.js'; 
+import { SpriteCore } from './modules/editor/sprite-core.js'; 
+import { Magic } from './modules/tools/magic.js';
+import { BatchTool } from './modules/tools/batch.js'; 
+import { Auth } from './modules/core/auth.js'; // Import module mới
 
-export const Magic = {
-    init() {
-        const btnAI = document.getElementById('btnAiRemove');
-        if (btnAI) {
-            btnAI.addEventListener('click', () => this.processAiRemove());
-        }
-    },
+// --- KHIÊN CHẮN ---
+['dragenter', 'dragover', 'drop'].forEach(eventName => {
+    window.addEventListener(eventName, (e) => { e.preventDefault(); }, false);
+});
 
-    async processAiRemove() {
-        const activeObj = FabricEditor.getActiveObject();
-        if (!activeObj || activeObj.type !== 'image') {
-            alert("⚠️ Vui lòng click chọn vào tấm ảnh trên Workspace trước!");
-            return;
-        }
+// Init
+Loader.init();
+FabricEditor.init();
+GifCore.init();
+SpriteCore.init();
+Magic.init();
+BatchTool.init();
+Auth.init(); // Khởi chạy Auth
 
-        const btn = document.getElementById('btnAiRemove');
-        const originalText = btn.innerHTML;
+// Expose Auth ra window để nút HTML gọi được (onclick="window.Auth.logout()")
+window.Auth = Auth;
+
+// --- AUTH EVENTS ---
+const btnLogin = document.getElementById('btnLogin');
+if (btnLogin) {
+    btnLogin.addEventListener('click', () => {
+        const user = document.getElementById('authUsername').value.trim();
+        Auth.login(user);
+    });
+}
+
+const btnRegister = document.getElementById('btnRegister');
+if (btnRegister) {
+    btnRegister.addEventListener('click', () => {
+        const user = document.getElementById('authUsername').value.trim();
+        Auth.register(user);
+    });
+}
+
+const btnSaveKey = document.getElementById('btnSaveKey');
+if (btnSaveKey) {
+    btnSaveKey.addEventListener('click', () => {
+        const provider = document.getElementById('keyProvider').value;
+        const name = document.getElementById('keyName').value.trim();
+        const key = document.getElementById('keyValue').value.trim();
         
-        // Hiệu ứng loading
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang tải AI & Model xịn...';
-        btn.disabled = true;
+        if(!key) return alert("Chưa nhập Key mà lưu gì bro?");
+        
+        Auth.addKey(provider, key, name);
+        
+        // Reset form
+        document.getElementById('keyName').value = '';
+        document.getElementById('keyValue').value = '';
+    });
+}
 
-        try {
-            console.log("Magic: Đang tải thư viện AI...");
-            
-            // Tải thư viện từ esm.sh
-            const module = await import("https://esm.sh/@imgly/background-removal@1.5.5");
-            const imglyRemoveBackground = module.removeBackground || module.default;
-
-            if (typeof imglyRemoveBackground !== 'function') {
-                throw new Error("Không tìm thấy hàm xử lý trong thư viện đã tải!");
-            }
-
-            btn.innerHTML = '<i class="fas fa-magic fa-spin"></i> AI đang xử lý kỹ...';
-            
-            const imgSrc = activeObj.getSrc();
-            console.log("Magic: Bắt đầu xử lý ảnh...", imgSrc);
-
-            // --- CẤU HÌNH NÂNG CAO CHẤT LƯỢNG ---
-            const config = {
-                // Bật debug để xem nó có tải model full không
-                debug: true, 
-                // Cấu hình đầu ra chất lượng cao nhất
-                output: {
-                    format: 'image/png', // Bắt buộc PNG để có nền trong suốt xịn
-                    quality: 1.0,        // Chất lượng tối đa (không nén)
-                    type: 'foreground'   // Chỉ lấy chủ thể
-                },
-                // Hàm hiển thị phần trăm tải
-                progress: (key, current, total) => {
-                     // Chỉ hiện khi đang tải file model nặng
-                    if (typeof total === 'number' && total > 100000) {
-                        const percent = Math.round((current / total) * 100);
-                        btn.innerHTML = `<i class="fas fa-download fa-spin"></i> Tải Model: ${percent}%`;
-                    }
-                }
-            };
-            
-            // Gọi AI với cấu hình xịn
-            // Lưu ý: Lần đầu chạy có thể hơi lâu do tải model khoảng 30-40MB
-            const blob = await imglyRemoveBackground(imgSrc, config);
-            const url = URL.createObjectURL(blob);
-            
-            console.log("Magic: Tách nền thành công!", url);
-
-            // Thay thế ảnh cũ bằng ảnh mới
-            FabricEditor.replaceActiveImage(url);
-            
-        } catch (error) {
-            console.error("Magic Error:", error);
-            // Chi tiết lỗi hơn để dễ debug
-            alert(`❌ Lỗi AI: ${error.message}\n\nTip: Nếu thấy báo lỗi bộ nhớ (memory), hãy thử ảnh nhỏ hơn.`);
-        } finally {
-            btn.innerHTML = originalText;
-            btn.disabled = false;
-        }
-    }
-};
+// Events Download Studio (Giữ nguyên)
+const btnDownload = document.getElementById('btnDownload');
+if (btnDownload) {
+    btnDownload.onclick = () => {
+        const name = document.getElementById('outName').value;
+        const format = document.getElementById('outFormat').value;
+        const quality = document.getElementById('qualityRange').value;
+        const dataURL = FabricEditor.exportImage(format, quality);
+        Exporter.downloadBase64(dataURL, name, format);
+    };
+}
+document.getElementById('qualityRange').oninput = (e) => UI.updateQualityDisplay(e.target.value);

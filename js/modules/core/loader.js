@@ -1,7 +1,6 @@
 // js/modules/core/loader.js
 import { UI } from './ui.js';
 import { FabricEditor } from '../editor/fabric-editor.js';
-// Import thêm 2 ông thần này để Loader phân phối hàng
 import { GifCore } from '../editor/gif-core.js';
 import { SpriteCore } from '../editor/sprite-core.js';
 
@@ -13,7 +12,6 @@ export const Loader = {
     },
 
     setupFileInput() {
-        // Input cho Studio chính
         const input = document.getElementById('imageInput');
         if (input) {
             input.addEventListener('change', (e) => {
@@ -23,7 +21,6 @@ export const Loader = {
             });
         }
 
-        // Input thêm ảnh phụ vào Studio
         const addBtn = document.getElementById('addImageBtn');
         if (addBtn) {
             addBtn.addEventListener('change', (e) => {
@@ -56,40 +53,45 @@ export const Loader = {
     },
 
     setupPasteEvent() {
-        // Xóa sự kiện cũ nếu có để tránh duplicate (cho chắc ăn)
+        // Gỡ bỏ sự kiện cũ nếu có
         document.removeEventListener('paste', this.handlePaste);
-        
-        // Bind this để dùng được trong hàm handlePaste
         this.handlePaste = this.handlePaste.bind(this);
         document.addEventListener('paste', this.handlePaste);
+        console.log("Studio: Paste Event Listener Activated");
     },
 
     handlePaste(e) {
+        console.log("Studio: Paste detected!"); // Kiểm tra xem console có hiện dòng này không
+        
         const items = e.clipboardData.items;
         let file = null;
 
-        // 1. Tìm ảnh trong clipboard
         for (let i = 0; i < items.length; i++) {
+            // Chỉ tìm ảnh (image/png, image/jpeg...)
             if (items[i].type.indexOf('image') !== -1) {
                 file = items[i].getAsFile();
                 break; 
             }
         }
 
-        // Nếu không có ảnh thì kệ (để trình duyệt paste text nếu user muốn)
-        if (!file) return;
+        if (!file) {
+            console.log("Studio: No image found in clipboard");
+            return;
+        }
 
-        // 2. Xác định đang đứng ở Tab nào
-        const activeTab = document.querySelector('.nav-link.active');
-        if (!activeTab) return;
-
-        // 3. Chặn hành vi mặc định (QUAN TRỌNG: Để không bị paste 2 lần hoặc paste lỗi)
+        // Chặn hành vi paste mặc định của trình duyệt
         e.preventDefault();
 
-        // 4. Phân phối hàng về đúng kho
-        switch (activeTab.id) {
+        // Xác định tab đang mở
+        const activeTab = document.querySelector('.nav-link.active');
+        const tabId = activeTab ? activeTab.id : 'photo-tab'; // Mặc định là photo-tab nếu không tìm thấy
+
+        console.log(`Studio: Processing paste for tab ${tabId}`);
+
+        switch (tabId) {
             case 'photo-tab':
-                // Nếu Studio đang mở thì paste là thêm ảnh (Append), chưa mở thì là load mới
+                // Nếu editor đang ẩn (chưa có ảnh nào) -> Load mới
+                // Nếu editor đang hiện -> Thêm ảnh (Append)
                 const isAppend = document.getElementById('editorArea').style.display !== 'none';
                 this.processFile(file, isAppend);
                 break;
@@ -107,7 +109,7 @@ export const Loader = {
                 break;
             
             case 'batch-tab':
-                alert("Batch Tool không hỗ trợ Paste từng ảnh. Vui lòng chọn file!");
+                alert("Batch Tool không hỗ trợ Paste từng ảnh. Vui lòng chọn file từ máy!");
                 break;
         }
     },
@@ -117,7 +119,7 @@ export const Loader = {
         
         const reader = new FileReader();
         reader.onload = (e) => {
-            // Đẩy DataURL sang cho Fabric xử lý
+            // Đẩy vào Fabric Canvas
             FabricEditor.addImage(e.target.result, isAppend);
             if (!isAppend) UI.showEditor();
         };

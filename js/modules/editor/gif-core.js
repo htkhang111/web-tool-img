@@ -1,4 +1,4 @@
-// js/modules/gif-core.js
+// js/modules/editor/gif-core.js
 let superGifInstance = null;
 let cropperInstance = null;
 let currentFile = null;
@@ -62,20 +62,7 @@ export const GifCore = {
             btnDownload.addEventListener('click', () => this.processAndExport());
         }
 
-        // --- PASTE EVENT ---
-        document.addEventListener('paste', (e) => {
-            const activeTab = document.querySelector('.nav-link.active');
-            if (activeTab && activeTab.id === 'gif-tab') {
-                const items = e.clipboardData.items;
-                for (let i = 0; i < items.length; i++) {
-                    if (items[i].type === 'image/gif') {
-                        this.loadGif(items[i].getAsFile());
-                        e.preventDefault();
-                        break;
-                    }
-                }
-            }
-        });
+        // --- ĐÃ XÓA SỰ KIỆN PASTE Ở ĐÂY ĐỂ TRÁNH XUNG ĐỘT VỚI LOADER ---
     },
 
     loadGif(file) {

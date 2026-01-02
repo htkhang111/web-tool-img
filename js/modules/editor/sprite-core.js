@@ -1,4 +1,4 @@
-// js/modules/sprite-core.js
+// js/modules/editor/sprite-core.js
 // Fix: High Precision Cutting (Fix lỗi trôi hình), Offset, Studio Flow
 
 let currentSprite = null;
@@ -56,19 +56,7 @@ export const SpriteCore = {
             if(el) el.addEventListener('input', () => this.startPreviewAnimation());
         });
 
-        // Hỗ trợ Paste
-        document.addEventListener('paste', (e) => {
-            const activeTab = document.querySelector('.nav-link.active');
-            if (activeTab && activeTab.id === 'sprite-tab') {
-                const items = e.clipboardData.items;
-                for (let i = 0; i < items.length; i++) {
-                    if (items[i].type.indexOf('image') !== -1) {
-                        this.loadSprite(items[i].getAsFile());
-                        break;
-                    }
-                }
-            }
-        });
+        // --- ĐÃ XÓA SỰ KIỆN PASTE Ở ĐÂY ĐỂ TRÁNH XUNG ĐỘT VỚI LOADER ---
     },
 
     loadSprite(file) {
@@ -145,18 +133,14 @@ export const SpriteCore = {
 
         const delay = 1000 / fps;
 
-        // --- FIX QUAN TRỌNG: Dùng số thực (Float) thay vì làm tròn (Math.floor) ---
-        // Điều này giúp cắt chính xác tuyệt đối, không bị lệch frame cuối
         const frameW = currentSprite.width / cols; 
         const frameH = currentSprite.height / rows;
 
-        // Chỉ làm tròn khi hiển thị text cho đẹp
         document.getElementById('spriteFrameSize').innerText = `${Math.round(frameW)} x ${Math.round(frameH)} px`;
 
         const canvas = document.getElementById('framePreviewCanvas');
         const ctx = canvas.getContext('2d');
         
-        // Canvas cần kích thước nguyên, nhưng vẽ bên trong dùng số thực
         canvas.width = Math.ceil(frameW);
         canvas.height = Math.ceil(frameH);
 
@@ -164,19 +148,17 @@ export const SpriteCore = {
         const totalFrames = cols * rows;
 
         const draw = () => {
-            // Tính toán vị trí cắt (dùng số thực)
             const c = currentFrameIndex % cols;
             const r = Math.floor(currentFrameIndex / cols);
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
-            // Vẽ frame
             ctx.drawImage(
                 currentSprite, 
-                c * frameW, r * frameH, // Source X, Y (Float)
-                frameW, frameH,         // Source W, H (Float)
-                offX, offY,             // Dest X, Y (Có Offset căn chỉnh)
-                frameW, frameH          // Dest W, H
+                c * frameW, r * frameH, 
+                frameW, frameH,         
+                offX, offY,             
+                frameW, frameH          
             );
 
             currentFrameIndex = (currentFrameIndex + 1) % totalFrames;
@@ -198,11 +180,9 @@ export const SpriteCore = {
         const offX = parseInt(document.getElementById('spriteOffsetX').value) || 0;
         const offY = parseInt(document.getElementById('spriteOffsetY').value) || 0;
         
-        // Dùng số thực cho tính toán
         const frameW = currentSprite.width / cols;
         const frameH = currentSprite.height / rows;
 
-        // Tính toán Resize
         let finalW = Math.ceil(frameW);
         let finalH = Math.ceil(frameH);
         let scale = 1;
@@ -213,11 +193,9 @@ export const SpriteCore = {
             finalH = Math.ceil(frameH * scale);
         }
 
-        // Offset cũng phải scale theo
         const scaledOffX = offX * scale;
         const scaledOffY = offY * scale;
 
-        // --- XUẤT PNG ---
         if (format === 'png') {
             const canvas = document.createElement('canvas');
             canvas.width = finalW;
@@ -232,7 +210,6 @@ export const SpriteCore = {
             return;
         }
 
-        // --- XUẤT GIF ---
         const fps = parseInt(document.getElementById('spriteFPS').value);
         const loop = document.getElementById('spriteLoop').checked;
         const delay = 1000 / fps;

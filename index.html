@@ -22,22 +22,16 @@
             <h3 class="text-info m-0"><i class="fas fa-layer-group"></i> Studio Pro</h3>
             <div class="text-muted small">Dev: Trương Khuynh Hàn</div>
         </div>
-        <div>
-            <div id="authBtnArea">
-                <button class="btn btn-outline-info btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#authModal">
-                    <i class="fas fa-user"></i> Đăng Nhập
-                </button>
-            </div>
-            <div id="userProfileArea" style="display: none; align-items: center; gap: 10px;">
-                <span class="text-warning fw-bold small" id="usernameDisplay">User</span>
-                <div class="vr bg-secondary"></div>
-                <button class="btn btn-dark btn-sm border-secondary" data-bs-toggle="modal" data-bs-target="#keysModal" title="Quản lý Key">
-                    <i class="fas fa-key text-success"></i>
-                </button>
-                <button class="btn btn-outline-danger btn-sm" onclick="window.Auth.logout()">
-                    <i class="fas fa-sign-out-alt"></i>
-                </button>
-            </div>
+        
+        <div id="userProfileArea" style="display: flex; align-items: center; gap: 10px;">
+            <span class="text-warning fw-bold small" id="usernameDisplay">...</span>
+            <div class="vr bg-secondary"></div>
+            <button class="btn btn-dark btn-sm border-secondary" data-bs-toggle="modal" data-bs-target="#keysModal" title="Quản lý Key">
+                <i class="fas fa-key text-success"></i>
+            </button>
+            <button class="btn btn-outline-danger btn-sm" onclick="window.Auth.logout()" title="Đăng xuất">
+                <i class="fas fa-sign-out-alt"></i>
+            </button>
         </div>
     </div>
 
@@ -58,7 +52,6 @@
                     <input type="file" id="imageInput" accept="image/*" hidden>
                 </div>
             </div>
-
             <div class="row" id="editorArea" style="display: none;">
                 <div class="col-lg-9 mb-3">
                     <div class="workspace-container bg-checkerboard border border-secondary shadow-lg d-flex justify-content-center align-items-center" style="min-height: 600px; overflow: hidden;">
@@ -224,24 +217,6 @@
                         <input type="text" id="spriteOutName" class="form-control form-control-sm bg-secondary text-white border-0 mb-3">
                         <button id="btnSpriteConvert" class="btn btn-success w-100 fw-bold">💾 Tải Về</button>
                     </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="modal fade" id="authModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered modal-sm">
-        <div class="modal-content bg-dark text-white border-info">
-            <div class="modal-header border-secondary">
-                <h6 class="modal-title text-info">Xác Thực</h6>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <input type="text" id="authUsername" class="form-control bg-secondary text-white mb-3 text-center fw-bold" placeholder="Nhập tên...">
-                <div class="d-flex gap-2">
-                    <button class="btn btn-info w-50 fw-bold" id="btnLogin">Vào</button>
-                    <button class="btn btn-outline-light w-50" id="btnRegister">ĐK</button>
                 </div>
             </div>
         </div>

@@ -7,39 +7,37 @@ import { GifCore } from './modules/editor/gif-core.js';
 import { SpriteCore } from './modules/editor/sprite-core.js';
 import { Magic } from './modules/tools/magic.js';
 import { BatchTool } from './modules/tools/batch.js';
-import { Auth } from './modules/core/auth.js'; // Module mới
+import { Auth } from './modules/core/auth.js';
 
-// Chặn drop mặc định
+// --- BẢO VỆ TRANG (Quan Trọng) ---
+// Nếu chưa đăng nhập -> Đá về login.html ngay lập tức
+Auth.requireLogin();
+
+// --- KHIÊN CHẮN ---
 ['dragenter', 'dragover', 'drop'].forEach(e => window.addEventListener(e, ev => ev.preventDefault()));
 
-// Khởi tạo toàn bộ
+// Init Tools
 Loader.init();
 FabricEditor.init();
 GifCore.init();
 SpriteCore.init();
 Magic.init();
 BatchTool.init();
-Auth.init();
 
-// Expose Auth để HTML gọi được (nút Logout)
+// Expose Auth ra window để nút Logout trong HTML gọi được
 window.Auth = Auth;
 
-// --- Sự kiện Auth ---
-document.getElementById('btnLogin')?.addEventListener('click', () => {
-    Auth.login(document.getElementById('authUsername').value.trim());
-});
-
-document.getElementById('btnRegister')?.addEventListener('click', () => {
-    Auth.register(document.getElementById('authUsername').value.trim());
-});
-
+// --- Sự kiện Quản lý Key (Vẫn giữ ở trang chủ) ---
 document.getElementById('btnSaveKey')?.addEventListener('click', () => {
     const p = document.getElementById('keyProvider').value;
     const n = document.getElementById('keyName').value.trim();
     const k = document.getElementById('keyValue').value.trim();
+    
     if(k) {
         Auth.addKey(p, k, n);
         document.getElementById('keyValue').value = '';
+        // Clear name input
+        document.getElementById('keyName').value = '';
     } else {
         alert("Chưa nhập Key!");
     }

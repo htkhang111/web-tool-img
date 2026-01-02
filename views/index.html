@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Studio Pro - Trương Khuynh Hàn</title>
+    <title>Studio Lỏ</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="../css/style.css">
     
-    <script src="./coi-serviceworker.js"></script>
+    <script src="../coi-serviceworker.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
@@ -19,14 +19,14 @@
 <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4 border-bottom border-secondary pb-3">
         <div>
-            <h3 class="text-info m-0"><i class="fas fa-layer-group"></i> Studio Pro</h3>
-            <div class="text-muted small">Dev: Trương Khuynh Hàn</div>
+            <h3 class="text-info m-0"><i class="fas fa-layer-group"></i> Studio Lỏ</h3>
+            <div class="text-muted small">Dev: vô danh</div>
         </div>
         
         <div id="userProfileArea" style="display: flex; align-items: center; gap: 10px;">
-            <span class="text-warning fw-bold small" id="usernameDisplay">...</span>
+            <span class="text-warning fw-bold small" id="usernameDisplay">Đang tải...</span>
             <div class="vr bg-secondary"></div>
-            <button class="btn btn-dark btn-sm border-secondary" data-bs-toggle="modal" data-bs-target="#keysModal" title="Quản lý Key">
+            <button class="btn btn-dark btn-sm border-secondary" data-bs-toggle="modal" data-bs-target="#keysModal" title="Quản lý API Key">
                 <i class="fas fa-key text-success"></i>
             </button>
             <button class="btn btn-outline-danger btn-sm" onclick="window.Auth.logout()" title="Đăng xuất">
@@ -43,6 +43,7 @@
     </ul>
 
     <div class="tab-content">
+        
         <div class="tab-pane fade show active" id="photo-panel">
             <div class="card bg-secondary text-white mb-4 shadow-sm dashed-border" id="dropZone">
                 <div class="card-body text-center py-5">
@@ -52,6 +53,7 @@
                     <input type="file" id="imageInput" accept="image/*" hidden>
                 </div>
             </div>
+
             <div class="row" id="editorArea" style="display: none;">
                 <div class="col-lg-9 mb-3">
                     <div class="workspace-container bg-checkerboard border border-secondary shadow-lg d-flex justify-content-center align-items-center" style="min-height: 600px; overflow: hidden;">
@@ -61,9 +63,9 @@
                         <button class="btn btn-outline-light btn-sm" onclick="document.getElementById('addImageBtn').click()"><i class="fas fa-plus"></i> Thêm</button>
                         <input type="file" id="addImageBtn" hidden accept="image/*">
                         <div class="vr bg-secondary mx-2"></div>
-                        <button class="btn btn-outline-light btn-sm" id="btnBringFront"><i class="fas fa-arrow-up"></i></button>
-                        <button class="btn btn-outline-light btn-sm" id="btnSendBack"><i class="fas fa-arrow-down"></i></button>
-                        <button class="btn btn-outline-danger btn-sm" id="btnDeleteObj"><i class="fas fa-trash"></i></button>
+                        <button class="btn btn-outline-light btn-sm" id="btnBringFront" title="Lên trên"><i class="fas fa-arrow-up"></i></button>
+                        <button class="btn btn-outline-light btn-sm" id="btnSendBack" title="Xuống dưới"><i class="fas fa-arrow-down"></i></button>
+                        <button class="btn btn-outline-danger btn-sm" id="btnDeleteObj" title="Xóa"><i class="fas fa-trash"></i></button>
                         <div class="vr bg-secondary mx-2"></div>
                         <button class="btn btn-outline-info btn-sm fw-bold" id="btnAiRemove"><i class="fas fa-robot"></i> AI Tách Nền</button>
                         <button class="btn btn-outline-danger btn-sm ms-auto" id="btnClearAll"><i class="fas fa-bomb"></i> Reset</button>
@@ -221,38 +223,39 @@
             </div>
         </div>
     </div>
-</div>
 
-<div class="modal fade" id="keysModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content bg-dark text-white border-secondary">
-            <div class="modal-header border-secondary">
-                <h5 class="modal-title text-warning">Kho API Key</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body p-3">
-                <div class="bg-black bg-opacity-25 p-3 rounded mb-3 border border-secondary">
-                    <h6 class="text-info small fw-bold">THÊM KEY MỚI</h6>
-                    <select id="keyProvider" class="form-select form-select-sm bg-dark text-white border-secondary mb-2">
-                        <option value="huggingface">Hugging Face (Free)</option>
-                        <option value="photoroom">PhotoRoom (Pro)</option>
-                    </select>
-                    <input type="text" id="keyName" class="form-control form-control-sm bg-dark text-white border-secondary mb-2" placeholder="Tên (VD: Key Nhà...)">
-                    <input type="text" id="keyValue" class="form-control form-control-sm bg-dark text-white border-secondary font-monospace mb-2" placeholder="Paste Key vào đây...">
-                    <button class="btn btn-success btn-sm w-100" id="btnSaveKey">Lưu</button>
+    <div class="modal fade" id="keysModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark text-white border-secondary shadow-lg">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title text-warning"><i class="fas fa-key"></i> Kho API Key</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
-                <h6 class="text-muted small border-bottom border-secondary pb-1">DANH SÁCH KEY</h6>
-                <div id="keyListContainer" style="max-height: 200px; overflow-y: auto;"></div>
+                <div class="modal-body p-3">
+                    <div class="bg-black bg-opacity-25 p-3 rounded mb-3 border border-secondary">
+                        <h6 class="text-info small fw-bold mb-3">THÊM KEY MỚI</h6>
+                        <select id="keyProvider" class="form-select form-select-sm bg-dark text-white border-secondary mb-2">
+                            <option value="huggingface">Hugging Face (Free)</option>
+                            <option value="photoroom">PhotoRoom (Pro)</option>
+                        </select>
+                        <input type="text" id="keyName" class="form-control form-control-sm bg-dark text-white border-secondary mb-2" placeholder="Tên (VD: Key Nhà...)">
+                        <input type="text" id="keyValue" class="form-control form-control-sm bg-dark text-white border-secondary font-monospace mb-2" placeholder="Paste Key vào đây...">
+                        <button class="btn btn-success btn-sm w-100 fw-bold" id="btnSaveKey"><i class="fas fa-save"></i> Lưu & Kích Hoạt</button>
+                    </div>
+                    <h6 class="text-muted small border-bottom border-secondary pb-1">DANH SÁCH KEY</h6>
+                    <div id="keyListContainer" style="max-height: 200px; overflow-y: auto;"></div>
+                </div>
             </div>
         </div>
     </div>
+
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/buzzfeed/libgif-js@master/libgif.js"></script>
-<script src="./js/gif.js"></script>
-<script type="module" src="./js/main.js"></script>
+<script src="../js/gif.js"></script>
+<script type="module" src="../js/main.js"></script>
 
 </body>
 </html>

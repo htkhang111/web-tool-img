@@ -1,0 +1,7 @@
+{
+  "rewrites": [
+    { "source": "/", "destination": "/views/login.html" },
+    { "source": "/index.html", "destination": "/views/index.html" },
+    { "source": "/login.html", "destination": "/views/login.html" }
+  ]
+}

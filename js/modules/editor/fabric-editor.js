@@ -4,7 +4,6 @@ export const FabricEditor = {
 
     init() {
         // Khởi tạo Fabric Canvas
-        // Kích thước mặc định 800x600, sẽ tự resize khi ảnh đầu tiên vào
         this.canvas = new fabric.Canvas('fabricCanvas', {
             width: 800,
             height: 600,
@@ -66,7 +65,7 @@ export const FabricEditor = {
             }
 
             img.set({
-                cornerColor: '#0dcaf0', // Màu xanh dương cyan đẹp
+                cornerColor: '#0dcaf0', // Màu xanh dương cyan
                 cornerStyle: 'circle',
                 borderColor: '#0dcaf0',
                 transparentCorners: false
@@ -74,6 +73,9 @@ export const FabricEditor = {
 
             this.canvas.add(img);
             this.canvas.setActiveObject(img);
+            
+            // FIX: Tính toán lại vị trí chuột trên canvas để sửa lỗi không click được
+            this.canvas.calcOffset(); 
             this.canvas.renderAll();
         });
     },
@@ -118,16 +120,16 @@ export const FabricEditor = {
             this.canvas.remove(activeObj);
             this.canvas.add(newImg);
             this.canvas.setActiveObject(newImg);
+            this.canvas.calcOffset(); // Fix offset khi thay ảnh
             this.canvas.renderAll();
         });
     },
 
     exportImage(format, quality) {
-        // format: 'image/png'
         return this.canvas.toDataURL({
             format: format === 'image/jpeg' ? 'jpeg' : 'png',
             quality: parseFloat(quality),
-            multiplier: 1 // Tăng lên nếu muốn xuất ảnh phân giải cao hơn canvas
+            multiplier: 1
         });
     }
 };

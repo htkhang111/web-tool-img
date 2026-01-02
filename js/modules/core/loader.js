@@ -6,9 +6,11 @@ import { SpriteCore } from '../editor/sprite-core.js';
 
 export const Loader = {
     init() {
+        console.log("Loader: Starting initialization...");
         this.setupFileInput();
         this.setupDropZone();
         this.setupPasteEvent();
+        console.log("Loader: Ready!");
     },
 
     setupFileInput() {
@@ -16,7 +18,10 @@ export const Loader = {
         if (input) {
             input.addEventListener('change', (e) => {
                 const file = e.target.files[0];
-                if (file) this.processFile(file);
+                if (file) {
+                    console.log("Loader: File input changed", file.name);
+                    this.processFile(file);
+                }
                 e.target.value = ''; 
             });
         }
@@ -25,7 +30,10 @@ export const Loader = {
         if (addBtn) {
             addBtn.addEventListener('change', (e) => {
                 const file = e.target.files[0];
-                if (file) this.processFile(file, true); 
+                if (file) {
+                    console.log("Loader: Add Image input changed", file.name);
+                    this.processFile(file, true); 
+                }
                 e.target.value = '';
             });
         }
@@ -57,41 +65,30 @@ export const Loader = {
         document.removeEventListener('paste', this.handlePaste);
         this.handlePaste = this.handlePaste.bind(this);
         document.addEventListener('paste', this.handlePaste);
-        console.log("Studio: Paste Event Listener Activated");
+        console.log("Loader: Paste Event Listener Activated");
     },
 
     handlePaste(e) {
-        console.log("Studio: Paste detected!"); // Kiểm tra xem console có hiện dòng này không
-        
         const items = e.clipboardData.items;
         let file = null;
 
         for (let i = 0; i < items.length; i++) {
-            // Chỉ tìm ảnh (image/png, image/jpeg...)
             if (items[i].type.indexOf('image') !== -1) {
                 file = items[i].getAsFile();
                 break; 
             }
         }
 
-        if (!file) {
-            console.log("Studio: No image found in clipboard");
-            return;
-        }
+        if (!file) return; // Không có ảnh thì thôi, không log spam
 
-        // Chặn hành vi paste mặc định của trình duyệt
+        console.log("Loader: Paste detected!", file.name);
         e.preventDefault();
 
-        // Xác định tab đang mở
         const activeTab = document.querySelector('.nav-link.active');
-        const tabId = activeTab ? activeTab.id : 'photo-tab'; // Mặc định là photo-tab nếu không tìm thấy
-
-        console.log(`Studio: Processing paste for tab ${tabId}`);
+        const tabId = activeTab ? activeTab.id : 'photo-tab';
 
         switch (tabId) {
             case 'photo-tab':
-                // Nếu editor đang ẩn (chưa có ảnh nào) -> Load mới
-                // Nếu editor đang hiện -> Thêm ảnh (Append)
                 const isAppend = document.getElementById('editorArea').style.display !== 'none';
                 this.processFile(file, isAppend);
                 break;
@@ -119,9 +116,9 @@ export const Loader = {
         
         const reader = new FileReader();
         reader.onload = (e) => {
+            if (!isAppend) UI.showEditor();
             // Đẩy vào Fabric Canvas
             FabricEditor.addImage(e.target.result, isAppend);
-            if (!isAppend) UI.showEditor();
         };
         reader.readAsDataURL(file);
     }

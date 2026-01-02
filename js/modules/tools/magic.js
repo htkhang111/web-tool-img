@@ -1,6 +1,5 @@
 // js/modules/tools/magic.js
 import { FabricEditor } from '../editor/fabric-editor.js';
-import imglyRemoveBackground from "https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.3.0/+esm";
 
 export const Magic = {
     init() {
@@ -20,10 +19,14 @@ export const Magic = {
         const btn = document.getElementById('btnAiRemove');
         const originalText = btn.innerHTML;
         
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang tách nền...';
+        // Hiệu ứng loading
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang tải AI & Tách nền...';
         btn.disabled = true;
 
         try {
+            // FIX: Dùng Dynamic Import để tránh treo web nếu mạng chậm hoặc CDN lỗi lúc khởi động
+            const { default: imglyRemoveBackground } = await import("https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.3.0/+esm");
+
             // Lấy source gốc của ảnh đang chọn
             const imgSrc = activeObj.getSrc();
             
@@ -36,7 +39,7 @@ export const Magic = {
             
         } catch (error) {
             console.error(error);
-            alert("Lỗi AI: " + error.message);
+            alert("Lỗi khi tải thư viện AI hoặc xử lý ảnh: " + error.message);
         } finally {
             btn.innerHTML = originalText;
             btn.disabled = false;

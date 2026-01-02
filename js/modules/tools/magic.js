@@ -24,13 +24,12 @@ export const Magic = {
         btn.disabled = true;
 
         try {
-            console.log("Magic: Đang tải thư viện AI từ CDN...");
+            console.log("Magic: Đang tải thư viện AI từ CDN esm.sh...");
             
-            // FIX: Đổi sang esm.sh để ổn định hơn và tránh bị chặn CORS/Network
-            // Dùng bản mới nhất @1.5.5
+            // FIX: Đổi sang esm.sh (Version 1.5.5 mới nhất) để tải ổn định hơn
             const module = await import("https://esm.sh/@imgly/background-removal@1.5.5");
             
-            // Một số CDN trả về default, một số trả về trực tiếp hàm
+            // Lấy hàm removeBackground từ module
             const imglyRemoveBackground = module.default || module;
 
             btn.innerHTML = '<i class="fas fa-magic fa-spin"></i> Đang tách nền...';
@@ -39,11 +38,12 @@ export const Magic = {
             const imgSrc = activeObj.getSrc();
             console.log("Magic: Bắt đầu xử lý ảnh...", imgSrc);
 
-            // Cấu hình AI tải model về (đảm bảo public path đúng nếu cần)
+            // Cấu hình hiển thị tiến độ (nếu cần)
             const config = {
                 progress: (key, current, total) => {
                     const percent = Math.round((current / total) * 100);
-                    btn.innerHTML = `<i class="fas fa-cog fa-spin"></i> ${percent}%`;
+                    // Chỉ hiện phần trăm nếu total hợp lệ
+                    if(total > 0) btn.innerHTML = `<i class="fas fa-cog fa-spin"></i> ${percent}%`;
                 }
             };
             
@@ -58,7 +58,7 @@ export const Magic = {
             
         } catch (error) {
             console.error("Magic Error:", error);
-            alert(`❌ Lỗi AI: Không thể tải thư viện hoặc xử lý ảnh.\n\nChi tiết: ${error.message}\n\n(Hãy kiểm tra kết nối mạng hoặc thử tắt AdBlock)`);
+            alert(`❌ Lỗi AI: Không thể tải thư viện hoặc xử lý ảnh.\n\nChi tiết: ${error.message}\n\n(Hãy kiểm tra kết nối mạng của bạn)`);
         } finally {
             btn.innerHTML = originalText;
             btn.disabled = false;

@@ -1,13 +1,5 @@
 // api/user/keys.js
-import { connectDB } from '../utils/db.js';
-import mongoose from 'mongoose';
-
-// Định nghĩa lại Schema User (để tránh lỗi model chưa đăng ký)
-const UserSchema = new mongoose.Schema({
-    username: String,
-    keys: Array
-});
-const User = mongoose.models.User || mongoose.model('User', UserSchema);
+import { supabase } from '../utils/db.js';
 
 export default async function handler(req, res) {
     // Chỉ chấp nhận POST (Thêm) và DELETE (Xóa)
@@ -16,36 +8,50 @@ export default async function handler(req, res) {
     }
 
     try {
-        await connectDB();
         const { username, keyItem, keyId } = JSON.parse(req.body);
 
         if (!username) return res.status(400).json({ error: 'Thiếu thông tin User!' });
 
-        const user = await User.findOne({ username });
-        if (!user) return res.status(404).json({ error: 'User không tồn tại!' });
+        // 1. Lấy user và mảng keys hiện tại
+        const { data: user, error } = await supabase
+            .from('users')
+            .select('keys')
+            .eq('username', username)
+            .single();
 
+        if (error || !user) return res.status(404).json({ error: 'User không tồn tại!' });
+
+        let currentKeys = user.keys || [];
+
+        // --- LOGIC THÊM KEY ---
         if (req.method === 'POST') {
-            // --- THÊM KEY MỚI ---
-            // Kiểm tra xem key này đã active chưa, nếu có thì tắt active các key cùng loại cũ
             if (keyItem.active) {
-                user.keys.forEach(k => {
+                // Tắt active các key cùng loại cũ
+                currentKeys = currentKeys.map(k => {
                     if (k.provider === keyItem.provider) k.active = false;
+                    return k;
                 });
             }
-            // Thêm key mới vào mảng
-            user.keys.push(keyItem);
-            await user.save();
-            return res.status(200).json({ message: 'Đã lưu Key vào DB!', keys: user.keys });
+            currentKeys.push(keyItem);
         } 
         
+        // --- LOGIC XÓA KEY ---
         if (req.method === 'DELETE') {
-            // --- XÓA KEY ---
-            user.keys = user.keys.filter(k => k.id !== keyId);
-            await user.save();
-            return res.status(200).json({ message: 'Đã xóa Key!', keys: user.keys });
+            currentKeys = currentKeys.filter(k => k.id !== keyId);
         }
 
+        // 2. Update ngược lại vào Supabase
+        const { error: updateError } = await supabase
+            .from('users')
+            .update({ keys: currentKeys })
+            .eq('username', username);
+
+        if (updateError) throw updateError;
+
+        return res.status(200).json({ message: 'Thành công!', keys: currentKeys });
+
     } catch (error) {
+        console.error("Key API Error:", error);
         return res.status(500).json({ error: error.message });
     }
 }
